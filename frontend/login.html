@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 / 注册 - 音频学习平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md mx-4">
+        <h1 class="text-2xl font-bold text-center text-gray-800 mb-2">🎧 音频学习平台</h1>
+        <p class="text-center text-gray-500 mb-8">登录开始学习之旅</p>
+
+        <!-- 登录表单 -->
+        <form id="login-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">用户名或邮箱</label>
+                <input type="text" id="login-username" required
+                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                <input type="password" id="login-password" required
+                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition">
+                登录
+            </button>
+            <p class="text-center text-sm text-gray-500">
+                还没有账号？<button type="button" onclick="showRegister()" class="text-blue-600 hover:underline">立即注册</button>
+            </p>
+        </form>
+
+        <!-- 注册表单 -->
+        <form id="register-form" class="space-y-4 hidden">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                <input type="text" id="reg-username" required
+                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                <input type="email" id="reg-email" required
+                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                <input type="password" id="reg-password" required minlength="6"
+                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">角色</label>
+                <select id="reg-role" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    <option value="student">学员</option>
+                    <option value="admin">管理员</option>
+                </select>
+            </div>
+            <button type="submit" class="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition">
+                注册
+            </button>
+            <p class="text-center text-sm text-gray-500">
+                已有账号？<button type="button" onclick="showLogin()" class="text-blue-600 hover:underline">去登录</button>
+            </p>
+        </form>
+
+        <div id="message" class="mt-4 text-center text-sm hidden"></div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script>
+        // 如果已登录，跳转到首页
+        if (localStorage.getItem('access_token')) {
+            window.location.href = '/';
+        }
+
+        function showRegister() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+            document.getElementById('message').classList.add('hidden');
+        }
+
+        function showLogin() {
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('message').classList.add('hidden');
+        }
+
+        function showMessage(text, isError = false) {
+            const el = document.getElementById('message');
+            el.textContent = text;
+            el.className = `mt-4 text-center text-sm ${isError ? 'text-red-500' : 'text-green-600'}`;
+            el.classList.remove('hidden');
+        }
+
+        // 登录
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+
+            try {
+                const result = await AuthAPI.login(
+                    document.getElementById('login-username').value,
+                    document.getElementById('login-password').value
+                );
+                localStorage.setItem('access_token', result.access_token);
+                localStorage.setItem('user', JSON.stringify(result.user));
+                showMessage('登录成功！');
+                setTimeout(() => {
+                    const redirect = new URLSearchParams(window.location.search).get('redirect') || '/';
+                    window.location.href = redirect;
+                }, 500);
+            } catch (err) {
+                showMessage(err.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '登录';
+            }
+        });
+
+        // 注册
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = '注册中...';
+
+            try {
+                await AuthAPI.register(
+                    document.getElementById('reg-username').value,
+                    document.getElementById('reg-email').value,
+                    document.getElementById('reg-password').value,
+                    document.getElementById('reg-role').value
+                );
+                showMessage('注册成功！请登录');
+                setTimeout(showLogin, 1000);
+            } catch (err) {
+                showMessage(err.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '注册';
+            }
+        });
+    </script>
+</body>
+</html>

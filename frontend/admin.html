@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - 音频学习平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="/" class="text-xl font-bold text-blue-600">🎧 音频学习平台</a>
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-600 text-sm">管理后台</span>
+                    <div id="nav-user"></div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 课程管理 -->
+        <section class="mb-12">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-800">📚 课程管理</h2>
+                <button onclick="showCourseModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                    + 新建课程
+                </button>
+            </div>
+
+            <!-- 课程列表 -->
+            <div id="admin-course-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="text-gray-400 text-center py-10">加载中...</div>
+            </div>
+        </section>
+
+        <!-- 批量上传 -->
+        <section class="mb-12">
+            <h2 class="text-xl font-bold text-gray-800 mb-6">⬆️ 批量上传音频</h2>
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">选择课程</label>
+                    <select id="upload-course-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- 请先选择课程 --</option>
+                    </select>
+                </div>
+
+                <!-- 拖拽上传区域 -->
+                <div id="drop-zone"
+                     class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-500 hover:bg-blue-50 transition cursor-pointer"
+                     onclick="document.getElementById('file-input').click()">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <p class="text-gray-500 mb-1">拖拽音频文件到这里，或点击选择</p>
+                    <p class="text-gray-400 text-sm">支持 MP3, WAV, OGG, M4A, FLAC, AAC</p>
+                    <input type="file" id="file-input" multiple accept="audio/*" class="hidden">
+                </div>
+
+                <!-- 选中文件列表 -->
+                <div id="file-list" class="mt-4 space-y-2 hidden">
+                    <h4 class="font-medium text-gray-700 mb-2">待上传文件：</h4>
+                    <div id="file-items" class="space-y-2"></div>
+                    <button onclick="uploadFiles()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition mt-4">
+                        开始上传
+                    </button>
+                </div>
+
+                <div id="upload-result" class="mt-4 hidden"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 课程模态框 -->
+    <div id="course-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 id="modal-title" class="text-lg font-bold mb-4">新建课程</h3>
+            <form id="course-form" class="space-y-4">
+                <input type="hidden" id="course-id">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">课程标题 *</label>
+                    <input type="text" id="course-title-input" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">分类</label>
+                    <input type="text" id="course-category-input" placeholder="如：编程、英语、设计" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">描述</label>
+                    <textarea id="course-desc-input" rows="3" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">封面图片</label>
+                    <input type="file" id="course-cover-input" accept="image/*" class="w-full px-3 py-2 border rounded-lg">
+                    <img id="cover-preview" class="mt-2 max-h-40 rounded-lg hidden">
+                </div>
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" onclick="closeCourseModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script>
+        let selectedFiles = [];
+        let allCourses = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!requireAdmin()) return;
+            loadAdminCourses();
+            setupUpload();
+        });
+
+        // 加载课程列表
+        async function loadAdminCourses() {
+            try {
+                const data = await CourseAPI.getList({ per_page: 100 });
+                allCourses = data.courses || [];
+                renderAdminCourses(allCourses);
+                updateUploadCourseSelect(allCourses);
+            } catch (err) {
+                document.getElementById('admin-course-list').innerHTML = `<div class="text-red-500">${err.message}</div>`;
+            }
+        }
+
+        function renderAdminCourses(courses) {
+            const container = document.getElementById('admin-course-list');
+            if (courses.length === 0) {
+                container.innerHTML = '<div class="text-gray-400 text-center py-10">暂无课程，点击上方按钮创建</div>';
+                return;
+            }
+            container.innerHTML = courses.map(c => `
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition">
+                    <div class="flex items-start gap-3">
+                        <img src="${c.cover_image || 'https://placehold.co/80x60/e5e7eb/9ca3af?text=Course'}" alt="" class="w-16 h-12 rounded object-cover flex-shrink-0">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-medium text-gray-900 truncate">${c.title}</h4>
+                            <span class="text-xs text-gray-500">${c.category}</span>
+                            <p class="text-xs text-gray-400 mt-1">${c.audio_count || 0} 个音频 · ${formatDate(c.created_at)}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="editCourse(${c.id})" class="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100">编辑</button>
+                        <button onclick="deleteCourse(${c.id})" class="text-xs px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100">删除</button>
+                        <a href="/player.html?course=${c.id}" class="text-xs px-3 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100">试听</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateUploadCourseSelect(courses) {
+            const select = document.getElementById('upload-course-select');
+            select.innerHTML = '<option value="">-- 请选择课程 --</option>' +
+                courses.map(c => `<option value="${c.id}">${c.title} (${c.category})</option>`).join('');
+        }
+
+        // 课程模态框
+        function showCourseModal(course = null) {
+            const modal = document.getElementById('course-modal');
+            const form = document.getElementById('course-form');
+            document.getElementById('modal-title').textContent = course ? '编辑课程' : '新建课程';
+            document.getElementById('course-id').value = course ? course.id : '';
+            document.getElementById('course-title-input').value = course ? course.title : '';
+            document.getElementById('course-category-input').value = course ? course.category : '';
+            document.getElementById('course-desc-input').value = course ? course.description || '' : '';
+            document.getElementById('cover-preview').classList.add('hidden');
+            document.getElementById('course-cover-input').value = '';
+            modal.classList.remove('hidden');
+        }
+
+        function closeCourseModal() {
+            document.getElementById('course-modal').classList.add('hidden');
+        }
+
+        async function editCourse(id) {
+            try {
+                const data = await CourseAPI.getDetail(id);
+                showCourseModal(data.course);
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function deleteCourse(id) {
+            if (!confirm('确定要删除此课程吗？关联的音频文件也会被删除。')) return;
+            try {
+                await CourseAPI.delete(id);
+                alert('删除成功');
+                loadAdminCourses();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // 封面预览
+        document.getElementById('course-cover-input')?.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    document.getElementById('cover-preview').src = e.target.result;
+                    document.getElementById('cover-preview').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 课程表单提交
+        document.getElementById('course-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const courseId = document.getElementById('course-id').value;
+            const data = {
+                title: document.getElementById('course-title-input').value,
+                category: document.getElementById('course-category-input').value,
+                description: document.getElementById('course-desc-input').value
+            };
+
+            // 上传封面
+            const coverFile = document.getElementById('course-cover-input').files[0];
+            if (coverFile) {
+                try {
+                    const coverData = await UploadAPI.uploadCover(coverFile);
+                    data.cover_image = coverData.url;
+                } catch (err) {
+                    console.warn('封面上传失败:', err);
+                }
+            }
+
+            try {
+                if (courseId) {
+                    await CourseAPI.update(courseId, data);
+                } else {
+                    await CourseAPI.create(data);
+                }
+                closeCourseModal();
+                loadAdminCourses();
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+
+        // 上传功能
+        function setupUpload() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+
+            // 拖拽事件
+            ['dragenter', 'dragover'].forEach(event => {
+                dropZone.addEventListener(event, (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('border-blue-500', 'bg-blue-50');
+                });
+            });
+            ['dragleave', 'drop'].forEach(event => {
+                dropZone.addEventListener(event, (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+                });
+            });
+            dropZone.addEventListener('drop', (e) => {
+                const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/'));
+                addFiles(files);
+            });
+
+            // 文件选择
+            fileInput.addEventListener('change', (e) => {
+                addFiles(Array.from(e.target.files));
+            });
+        }
+
+        function addFiles(files) {
+            selectedFiles = [...selectedFiles, ...files];
+            renderFileList();
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            renderFileList();
+        }
+
+        function renderFileList() {
+            const container = document.getElementById('file-list');
+            const items = document.getElementById('file-items');
+            if (selectedFiles.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+            container.classList.remove('hidden');
+            items.innerHTML = selectedFiles.map((file, i) => `
+                <div class="flex items-center bg-gray-50 rounded-lg p-3">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm mr-3">${i + 1}</div>
+                    <div class="flex-1 min-w-0">
+                        <input type="text" placeholder="音频标题（默认：${file.name.replace(/\.[^.]+$/, '')}）"
+                               class="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                               id="file-title-${i}">
+                    </div>
+                    <span class="text-xs text-gray-500 mx-2">${formatDuration(file.duration || 0)}</span>
+                    <button onclick="removeFile(${i})" class="text-red-500 hover:text-red-700 px-2">×</button>
+                </div>
+            `).join('');
+        }
+
+        async function uploadFiles() {
+            const courseId = document.getElementById('upload-course-select').value;
+            if (!courseId) {
+                alert('请先选择课程');
+                return;
+            }
+            if (selectedFiles.length === 0) {
+                alert('请选择要上传的文件');
+                return;
+            }
+
+            const btn = document.querySelector('#file-list button');
+            btn.disabled = true;
+            btn.textContent = '上传中...';
+
+            const titles = selectedFiles.map((_, i) => document.getElementById(`file-title-${i}`)?.value || '');
+
+            try {
+                const result = await UploadAPI.uploadAudio(selectedFiles, courseId, titles);
+                document.getElementById('upload-result').classList.remove('hidden');
+                document.getElementById('upload-result').innerHTML = `
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800">
+                        <p class="font-medium">上传成功！</p>
+                        <p class="text-sm mt-1">成功上传 ${result.uploaded?.length || 0} 个文件</p>
+                        ${result.errors?.length ? `<p class="text-sm text-red-600 mt-1">失败: ${result.errors.join(', ')}</p>` : ''}
+                    </div>
+                `;
+                selectedFiles = [];
+                document.getElementById('file-list').classList.add('hidden');
+                loadAdminCourses();
+            } catch (err) {
+                document.getElementById('upload-result').classList.remove('hidden');
+                document.getElementById('upload-result').innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">上传失败: ${err.message}</div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '开始上传';
+            }
+        }
+    </script>
+</body>
+</html>

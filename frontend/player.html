@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>播放器 - 音频学习平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <nav class="bg-gray-800 sticky top-0 z-50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-14">
+                <a href="/" class="text-lg font-bold text-blue-400 hover:text-blue-300">🎧 音频学习平台</a>
+                <div class="flex items-center space-x-4">
+                    <a href="/analyze.html" class="text-gray-300 hover:text-white text-sm">学习分析</a>
+                    <div id="nav-user"></div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- 左侧/上方：音频播放器 -->
+            <div class="lg:w-2/3">
+                <!-- 课程信息 -->
+                <div class="mb-6">
+                    <span id="course-category" class="text-sm text-gray-400"></span>
+                    <h1 id="course-title" class="text-2xl font-bold mt-1">加载中...</h1>
+                    <p id="course-desc" class="text-gray-400 text-sm mt-1 line-clamp-2"></p>
+                </div>
+
+                <!-- 播放器 -->
+                <div class="bg-gray-800 rounded-2xl p-6 mb-6">
+                    <div class="text-center mb-4">
+                        <div class="text-gray-400 text-sm mb-1" id="current-index">0 / 0</div>
+                        <h2 id="current-title" class="text-xl font-semibold">未选择音频</h2>
+                    </div>
+
+                    <audio id="main-audio" class="w-full mb-4" controls preload="metadata"></audio>
+
+                    <!-- 自定义控制 -->
+                    <div class="flex items-center justify-center gap-4 mb-4">
+                        <button onclick="playPrev()" class="p-2 rounded-full hover:bg-gray-700 transition">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                        </button>
+                        <button id="play-btn" onclick="togglePlay()" class="p-3 rounded-full bg-blue-600 hover:bg-blue-700 transition">
+                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        </button>
+                        <button onclick="playNext()" class="p-2 rounded-full hover:bg-gray-700 transition">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- 进度条 -->
+                    <div id="progress-bar" class="w-full h-2 bg-gray-600 rounded-full cursor-pointer mb-2 relative">
+                        <div id="progress-fill" class="h-full bg-blue-500 rounded-full transition-all" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between text-sm text-gray-400">
+                        <span id="time-current">00:00</span>
+                        <span id="time-total">00:00</span>
+                    </div>
+
+                    <!-- 倍速 -->
+                    <div class="mt-4 flex justify-center">
+                        <select id="speed-select" class="bg-gray-700 text-white text-sm px-3 py-1 rounded-lg border border-gray-600 focus:outline-none">
+                            <option value="0.5">0.5x</option>
+                            <option value="0.75">0.75x</option>
+                            <option value="1" selected>1.0x</option>
+                            <option value="1.25">1.25x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2.0x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧/下方：播放列表 -->
+            <div class="lg:w-1/3">
+                <h3 class="text-lg font-semibold mb-4">课程音频列表</h3>
+                <div id="playlist" class="bg-gray-800 rounded-xl p-4 max-h-[600px] overflow-y-auto space-y-2">
+                    <div class="text-gray-400 text-center py-10">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/player.js"></script>
+</body>
+</html>

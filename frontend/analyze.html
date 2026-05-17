@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学习分析 - 音频学习平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="/" class="text-xl font-bold text-blue-600">🎧 音频学习平台</a>
+                <div class="flex items-center space-x-4">
+                    <a href="/analyze.html" class="text-blue-600 font-medium text-sm">学习分析</a>
+                    <div id="nav-user"></div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 class="text-2xl font-bold text-gray-800 mb-8">📊 学习分析仪表盘</h1>
+
+        <!-- 总体统计卡片 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="stats-cards">
+            <div class="bg-white rounded-xl p-6 shadow-sm text-center">
+                <div class="text-3xl font-bold text-blue-600" id="stat-total-minutes">--</div>
+                <div class="text-sm text-gray-500 mt-1">总学习时长(分)</div>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-sm text-center">
+                <div class="text-3xl font-bold text-green-600" id="stat-completed">--</div>
+                <div class="text-sm text-gray-500 mt-1">已完成音频</div>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-sm text-center">
+                <div class="text-3xl font-bold text-purple-600" id="stat-courses">--</div>
+                <div class="text-sm text-gray-500 mt-1">参与课程</div>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-sm text-center">
+                <div class="text-3xl font-bold text-orange-600" id="stat-logs">--</div>
+                <div class="text-sm text-gray-500 mt-1">学习记录</div>
+            </div>
+        </div>
+
+        <!-- 学习建议 -->
+        <div class="mb-8" id="suggestions-section">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">💡 个性化学习建议</h2>
+            <div id="suggestions-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="bg-white rounded-xl p-6 shadow-sm text-center text-gray-400">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 时段分布 -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">⏰ 学习时段分布 (近7天)</h2>
+            <div class="flex items-end gap-1 h-40" id="hour-chart"></div>
+        </div>
+
+        <!-- 课程进度 -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">📚 课程进度</h2>
+            <div id="course-progress-list" class="space-y-4"></div>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!requireAuth()) return;
+            initAuth();
+            loadStats();
+            loadAnalysis();
+        });
+
+        async function loadStats() {
+            try {
+                const data = await AnalyzeAPI.getStats();
+                const stats = data.stats?.last_7_days || {};
+
+                document.getElementById('stat-total-minutes').textContent = stats.total_study_minutes?.toFixed(1) || '0';
+                document.getElementById('stat-completed').textContent = stats.completed_audio_count || '0';
+                document.getElementById('stat-courses').textContent = stats.total_courses_touched || '0';
+                document.getElementById('stat-logs').textContent = stats.study_log_count || '0';
+
+                // 时段分布柱状图
+                renderHourChart(stats.hour_distribution || {});
+            } catch (err) {
+                console.error('加载统计失败:', err);
+            }
+        }
+
+        async function loadAnalysis() {
+            try {
+                const data = await AnalyzeAPI.analyze(30);
+                renderSuggestions(data.analysis?.suggestions || []);
+                renderCourseProgress(data.analysis?.user_summary || {});
+            } catch (err) {
+                document.getElementById('suggestions-list').innerHTML =
+                    `<div class="col-span-full text-red-500">分析加载失败: ${err.message}</div>`;
+            }
+        }
+
+        function renderSuggestions(suggestions) {
+            const container = document.getElementById('suggestions-list');
+            if (!suggestions || suggestions.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-gray-400">暂无建议，开始学习后这里会显示个性化分析</div>';
+                return;
+            }
+
+            const categoryColors = {
+                '优先完成': 'bg-yellow-50 border-yellow-200 text-yellow-800',
+                '持续学习': 'bg-blue-50 border-blue-200 text-blue-800',
+                '复习回顾': 'bg-orange-50 border-orange-200 text-orange-800',
+                '学习习惯': 'bg-purple-50 border-purple-200 text-purple-800',
+                '表扬': 'bg-green-50 border-green-200 text-green-800',
+                '时间优化': 'bg-indigo-50 border-indigo-200 text-indigo-800',
+                '目标设定': 'bg-pink-50 border-pink-200 text-pink-800',
+                '入门': 'bg-gray-50 border-gray-200 text-gray-800'
+            };
+
+            container.innerHTML = suggestions.map(s => {
+                const colorClass = categoryColors[s.category] || 'bg-gray-50 border-gray-200 text-gray-800';
+                return `
+                    <div class="rounded-xl p-4 border ${colorClass}">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-lg">${s.icon || '💡'}</span>
+                            <span class="text-xs font-medium opacity-75">${s.category}</span>
+                        </div>
+                        <h3 class="font-bold mb-1">${s.title}</h3>
+                        <p class="text-sm opacity-80">${s.description}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderHourChart(hourDist) {
+            const container = document.getElementById('hour-chart');
+            const hours = Object.keys(hourDist).map(Number).sort((a, b) => a - b);
+            if (hours.length === 0) {
+                container.innerHTML = '<div class="w-full text-center text-gray-400">暂无数据</div>';
+                return;
+            }
+
+            const maxVal = Math.max(...Object.values(hourDist));
+            container.innerHTML = hours.map(h => {
+                const val = hourDist[h] || 0;
+                const pct = maxVal > 0 ? (val / maxVal * 100) : 0;
+                return `
+                    <div class="flex-1 flex flex-col items-center min-w-0">
+                        <div class="w-full bg-blue-100 rounded-t" style="height: ${pct}%; background: hsl(217, 91%, ${60 + (100-pct) * 0.2}%)" title="${val.toFixed(1)} 分钟"></div>
+                        <span class="text-xs text-gray-500 mt-1">${h}时</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderCourseProgress(summary) {
+            // 加载课程进度数据从 stats
+            AnalyzeAPI.getStats().then(data => {
+                const allStats = data.stats;
+                // 这里可以展示更详细的课程进度
+            }).catch(() => {});
+
+            document.getElementById('course-progress-list').innerHTML =
+                '<div class="text-gray-400">课程进度详情可在播放器页面查看</div>';
+        }
+    </script>
+</body>
+</html>
