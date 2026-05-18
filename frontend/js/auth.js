@@ -20,8 +20,26 @@ function updateNavUser(user) {
     if (user) {
         const isAdmin = user.role === 'admin';
         navUser.innerHTML = `
-            <span class="text-sm text-gray-600 mr-2">${user.username}${isAdmin ? ' (管理员)' : ''}</span>
-            <button onclick="AuthAPI.logout()" class="text-sm text-red-500 hover:text-red-700">退出</button>
+            <div class="relative group">
+                <button class="flex items-center gap-1 text-sm text-gray-700 hover:text-blue-600 py-2">
+                    <span class="font-medium">${user.username}</span>
+                    ${isAdmin ? '<span class="text-xs text-gray-400">(管理员)</span>' : ''}
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div class="absolute right-0 mt-0 w-40 bg-white rounded-lg shadow-lg border border-gray-100 hidden group-hover:block z-50">
+                    <a href="/settings.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 rounded-t-lg">
+                        ⚙️ 个人设置
+                    </a>
+                    <a href="/admin.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 ${isAdmin ? '' : 'hidden'}">
+                        🔧 管理后台
+                    </a>
+                    <button onclick="AuthAPI.logout()" class="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 hover:text-red-700 rounded-b-lg">
+                        🚪 退出登录
+                    </button>
+                </div>
+            </div>
         `;
     } else {
         navUser.innerHTML = `

@@ -142,3 +142,44 @@ def change_password():
     db.session.commit()
 
     return jsonify({'message': '密码修改成功'}), 200
+
+
+@auth_bp.route('/me', methods=['PUT'])
+@jwt_required()
+def update_profile():
+    """更新当前用户个人信息"""
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+
+    if not user:
+        return jsonify({'error': '用户不存在'}), 404
+
+    data = request.get_json() or {}
+
+    # 更新用户名
+    new_username = data.get('username', '').strip()
+    if new_username and new_username != user.username:
+        if User.query.filter_by(username=new_username).first():
+            return jsonify({'error': '用户名已被占用'}), 409
+        user.username = new_username
+
+    # 更新邮箱
+    new_email = data.get('email', '').strip()
+    if new_email and new_email != user.email:
+        if User.query.filter_by(email=new_email).first():
+            return jsonify({'error': '邮箱已被注册'}), 409
+        user.email = new_email
+
+    # 更新手机号
+    new_phone = data.get('phone', '').strip() or None
+    if new_phone and new_phone != user.phone:
+        if User.query.filter_by(phone=new_phone).first():
+            return jsonify({'error': '手机号已被绑定'}), 409
+        user.phone = new_phone
+
+    db.session.commit()
+
+    return jsonify({
+        'message': '个人信息更新成功',
+        'user': user.to_dict()
+    }), 200

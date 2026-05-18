@@ -1,0 +1,16 @@
+[project]
+name = "openclaw-learning-server"
+version = "0.1.0"
+description = "MCP Server for Audio Course Platform - OpenClaw Personal Learning Assistant"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.27.0",
+    "httpx>=0.28.0",
+]
+
+[project.scripts]
+openclaw-learning-server = "openclaw_learning_server.server:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

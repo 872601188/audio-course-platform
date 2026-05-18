@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人设置 - 音频学习平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="text-xl font-bold text-blue-600">🎧 音频学习平台</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/favorites.html" class="text-gray-600 hover:text-blue-600 text-sm">我的收藏</a>
+                    <a href="/analyze.html" class="text-gray-600 hover:text-blue-600 text-sm">学习分析</a>
+                    <div id="nav-user"></div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 class="text-2xl font-bold text-gray-800 mb-8">⚙️ 个人设置</h1>
+
+        <!-- 个人信息 -->
+        <section class="bg-white rounded-xl shadow-sm p-6 mb-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <span>👤</span> 账号信息
+            </h2>
+            <form id="profile-form" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                        <input type="text" id="profile-username" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">角色</label>
+                        <input type="text" id="profile-role" disabled class="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-500 cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">邮箱 <span class="text-red-500">*</span></label>
+                        <input type="email" id="profile-email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">手机号</label>
+                        <input type="tel" id="profile-phone" placeholder="可选，用于找回账号" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div class="flex justify-end pt-2">
+                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">保存修改</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- 修改密码 -->
+        <section class="bg-white rounded-xl shadow-sm p-6 mb-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <span>🔐</span> 修改密码
+            </h2>
+            <form id="password-form" class="space-y-4 max-w-md">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">原密码</label>
+                    <input type="password" id="pwd-old" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">新密码</label>
+                    <input type="password" id="pwd-new" required minlength="6" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <p class="text-xs text-gray-400 mt-1">至少 6 位字符</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">确认新密码</label>
+                    <input type="password" id="pwd-confirm" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex justify-end pt-2">
+                    <button type="submit" class="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition">修改密码</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- OpenClaw Token 管理 -->
+        <section class="bg-white rounded-xl shadow-sm p-6 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <span>🤖</span> OpenClaw Token 管理
+                </h2>
+                <button onclick="showOpenClawTokenModal()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm">
+                    + 生成 Token
+                </button>
+            </div>
+            <p class="text-sm text-gray-500 mb-4">
+                生成 API Token 后，可在 OpenClaw 配置中接入本学习平台，让 AI 成为你的个人学习助理。
+                <button onclick="showOpenClawGuide()" class="text-purple-600 hover:underline">查看配置指南 →</button>
+            </p>
+            <div id="openclaw-token-list">
+                <div class="text-gray-400 text-center py-6">加载中...</div>
+            </div>
+            <!-- 新生成的 Token 展示（一次性） -->
+            <div id="openclaw-new-token" class="hidden mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p class="text-sm font-medium text-yellow-800 mb-2">⚠️ Token 仅显示一次，请立即复制保存！</p>
+                <div class="flex items-center gap-2">
+                    <code id="openclaw-new-token-value" class="flex-1 bg-white px-3 py-2 rounded border text-sm font-mono break-all"></code>
+                    <button onclick="copyNewToken()" class="px-3 py-2 bg-yellow-200 text-yellow-800 rounded hover:bg-yellow-300 text-sm">复制</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- OpenClaw 配置指南弹窗 -->
+    <div id="openclaw-guide-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold">📘 OpenClaw 配置指南</h3>
+                <button onclick="closeOpenClawGuide()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="space-y-4 text-sm text-gray-700">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="font-medium text-gray-900 mb-2">1. 生成 Token</h4>
+                    <p>点击上方「+ 生成 Token」按钮，选择有效期和权限范围，然后复制生成的 Token。</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="font-medium text-gray-900 mb-2">2. 配置 OpenClaw</h4>
+                    <p class="mb-2">编辑 OpenClaw 配置文件（通常为 <code>~/.openclaw/config.json</code>）：</p>
+                    <pre class="bg-gray-800 text-gray-100 p-3 rounded-lg overflow-x-auto text-xs">
+{
+  "mcp": {
+    "servers": {
+      "audio-learning": {
+        "command": "python",
+        "args": ["-m", "openclaw_learning_server.server"],
+        "env": {
+          "LEARNING_API_URL": "http://localhost:5000",
+          "LEARNING_API_TOKEN": "你的Token"
+        }
+      }
+    }
+  }
+}</pre>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="font-medium text-gray-900 mb-2">3. 安装 MCP Server</h4>
+                    <pre class="bg-gray-800 text-gray-100 p-3 rounded-lg overflow-x-auto text-xs">
+cd mcp-server
+pip install -e .</pre>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="font-medium text-gray-900 mb-2">4. 使用示例</h4>
+                    <p>配置完成后，在 OpenClaw 中即可通过自然语言交互：</p>
+                    <ul class="list-disc list-inside mt-1 space-y-1 text-gray-600">
+                        <li>"我今天该学什么？" → 获取督促提醒</li>
+                        <li>"帮我制定本周学习计划" → 创建学习计划</li>
+                        <li>"我最近学得怎么样？" → 获取学习统计</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="flex justify-end pt-4">
+                <button onclick="closeOpenClawGuide()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OpenClaw Token 生成弹窗 -->
+    <div id="openclaw-token-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-bold mb-4">生成 OpenClaw Token</h3>
+            <form id="openclaw-token-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Token 名称</label>
+                    <input type="text" id="oct-name" value="OpenClaw" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">有效期</label>
+                    <select id="oct-expires" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="1">1 个月</option>
+                        <option value="3" selected>3 个月（默认）</option>
+                        <option value="6">6 个月</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">权限范围</label>
+                    <div id="oct-permissions" class="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+                        <div class="text-gray-400 text-sm">加载中...</div>
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <button type="button" onclick="checkAllPermissions(true)" class="text-xs px-2 py-1 bg-purple-50 text-purple-600 rounded hover:bg-purple-100">全选</button>
+                        <button type="button" onclick="checkAllPermissions(false)" class="text-xs px-2 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100">清空</button>
+                        <button type="button" onclick="resetDefaultPermissions()" class="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100">恢复默认</button>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" onclick="closeOpenClawTokenModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
+                    <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">生成</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!requireAuth()) return;
+            loadProfile();
+            loadOpenClawTokens();
+        });
+
+        // ========== 个人信息 ==========
+        async function loadProfile() {
+            try {
+                const res = await fetch('/api/me', {
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || '加载失败');
+                const user = data.user;
+                document.getElementById('profile-username').value = user.username || '';
+                document.getElementById('profile-email').value = user.email || '';
+                document.getElementById('profile-phone').value = user.phone || '';
+                document.getElementById('profile-role').value = user.role === 'admin' ? '管理员' : '学员';
+            } catch (err) {
+                alert('加载个人信息失败: ' + err.message);
+            }
+        }
+
+        document.getElementById('profile-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                username: document.getElementById('profile-username').value.trim(),
+                email: document.getElementById('profile-email').value.trim(),
+                phone: document.getElementById('profile-phone').value.trim()
+            };
+            try {
+                const res = await fetch('/api/me', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('access_token'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || '保存失败');
+                // 更新 localStorage 中的用户信息
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                user.username = data.user.username;
+                user.email = data.user.email;
+                user.phone = data.user.phone;
+                localStorage.setItem('user', JSON.stringify(user));
+                updateNavUser(user);
+                alert('个人信息已保存');
+            } catch (err) {
+                alert('保存失败: ' + err.message);
+            }
+        });
+
+        // ========== 修改密码 ==========
+        document.getElementById('password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const oldPwd = document.getElementById('pwd-old').value;
+            const newPwd = document.getElementById('pwd-new').value;
+            const confirmPwd = document.getElementById('pwd-confirm').value;
+
+            if (newPwd !== confirmPwd) {
+                alert('两次输入的新密码不一致');
+                return;
+            }
+            if (newPwd.length < 6) {
+                alert('新密码至少 6 位');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('access_token'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ old_password: oldPwd, new_password: newPwd })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || '修改失败');
+                alert('密码修改成功，请重新登录');
+                AuthAPI.logout();
+            } catch (err) {
+                alert('修改密码失败: ' + err.message);
+            }
+        });
+
+        // ========== OpenClaw Token 管理 ==========
+        let availablePermissions = [];
+        let defaultPermissions = [];
+
+        async function loadOpenClawTokens() {
+            const container = document.getElementById('openclaw-token-list');
+            try {
+                const res = await fetch('/api/openclaw/tokens', {
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || '加载失败');
+                const tokens = data.tokens || [];
+                if (tokens.length === 0) {
+                    container.innerHTML = '<div class="text-gray-400 text-center py-6">暂无 Token，点击上方按钮生成</div>';
+                    return;
+                }
+                container.innerHTML = `
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-200">
+                                <th class="text-left py-2 px-3 text-gray-600 font-medium">名称</th>
+                                <th class="text-left py-2 px-3 text-gray-600 font-medium">状态</th>
+                                <th class="text-left py-2 px-3 text-gray-600 font-medium">有效期</th>
+                                <th class="text-left py-2 px-3 text-gray-600 font-medium">权限</th>
+                                <th class="text-left py-2 px-3 text-gray-600 font-medium">最后使用</th>
+                                <th class="text-right py-2 px-3 text-gray-600 font-medium">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tokens.map(t => {
+                                const expired = new Date(t.expires_at) < new Date();
+                                const statusClass = t.is_active && !expired ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500';
+                                const statusText = t.is_active && !expired ? '有效' : (expired ? '已过期' : '已撤销');
+                                const perms = (t.permissions || []).map(p => {
+                                    const found = availablePermissions.find(ap => ap.key === p);
+                                    return found ? `<span class="inline-block px-1 py-0.5 bg-gray-100 rounded text-xs mr-1 mb-1">${found.label}</span>` : p;
+                                }).join('');
+                                return `
+                                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                    <td class="py-3 px-3">${t.name}</td>
+                                    <td class="py-3 px-3">
+                                        <span class="px-2 py-1 rounded text-xs ${statusClass}">${statusText}</span>
+                                    </td>
+                                    <td class="py-3 px-3 text-gray-500 text-xs">${formatDate(t.expires_at)}</td>
+                                    <td class="py-3 px-3">${perms}</td>
+                                    <td class="py-3 px-3 text-gray-500 text-xs">${t.last_used_at ? formatDate(t.last_used_at) : '从未使用'}</td>
+                                    <td class="py-3 px-3 text-right">
+                                        ${t.is_active && !expired ? `<button onclick="revokeOpenClawToken(${t.id})" class="text-xs px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100">撤销</button>` : '<span class="text-xs text-gray-400">-</span>'}
+                                    </td>
+                                </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (err) {
+                container.innerHTML = `<div class="text-red-500 text-center py-6">加载失败: ${err.message}</div>`;
+            }
+        }
+
+        async function showOpenClawTokenModal() {
+            document.getElementById('openclaw-token-modal').classList.remove('hidden');
+            if (availablePermissions.length === 0) {
+                try {
+                    const res = await fetch('/api/openclaw/permissions', {
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        availablePermissions = data.permissions || [];
+                        defaultPermissions = data.defaults || [];
+                        renderPermissionCheckboxes();
+                    }
+                } catch (e) { console.error('加载权限列表失败', e); }
+            }
+            resetDefaultPermissions();
+        }
+
+        function closeOpenClawTokenModal() {
+            document.getElementById('openclaw-token-modal').classList.add('hidden');
+        }
+
+        function showOpenClawGuide() {
+            document.getElementById('openclaw-guide-modal').classList.remove('hidden');
+        }
+
+        function closeOpenClawGuide() {
+            document.getElementById('openclaw-guide-modal').classList.add('hidden');
+        }
+
+        function renderPermissionCheckboxes() {
+            const container = document.getElementById('oct-permissions');
+            const groups = {};
+            availablePermissions.forEach(p => {
+                if (!groups[p.category]) groups[p.category] = [];
+                groups[p.category].push(p);
+            });
+            container.innerHTML = Object.entries(groups).map(([cat, perms]) => `
+                <div class="mb-2">
+                    <p class="text-xs font-medium text-gray-500 mb-1">${cat}</p>
+                    <div class="space-y-1">
+                        ${perms.map(p => `
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="oct-perm" value="${p.key}" class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                <span class="text-sm text-gray-700">${p.label}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function checkAllPermissions(checked) {
+            document.querySelectorAll('input[name="oct-perm"]').forEach(cb => cb.checked = checked);
+        }
+
+        function resetDefaultPermissions() {
+            document.querySelectorAll('input[name="oct-perm"]').forEach(cb => {
+                cb.checked = defaultPermissions.includes(cb.value);
+            });
+        }
+
+        document.getElementById('openclaw-token-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('oct-name').value.trim() || 'OpenClaw';
+            const expires = parseInt(document.getElementById('oct-expires').value);
+            const checkedPerms = Array.from(document.querySelectorAll('input[name="oct-perm"]:checked')).map(cb => cb.value);
+
+            try {
+                const res = await fetch('/api/openclaw/token', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('access_token'),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: name, expires_in_months: expires, permissions: checkedPerms })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || '生成失败');
+
+                closeOpenClawTokenModal();
+                const tokenBox = document.getElementById('openclaw-new-token');
+                const tokenValue = document.getElementById('openclaw-new-token-value');
+                tokenValue.textContent = data.token;
+                tokenBox.classList.remove('hidden');
+                loadOpenClawTokens();
+            } catch (err) {
+                alert('生成 Token 失败: ' + err.message);
+            }
+        });
+
+        function copyNewToken() {
+            const val = document.getElementById('openclaw-new-token-value').textContent;
+            navigator.clipboard.writeText(val).then(() => alert('已复制到剪贴板'));
+        }
+
+        async function revokeOpenClawToken(tokenId) {
+            if (!confirm('确定要撤销此 Token 吗？撤销后 OpenClaw 将无法再通过此 Token 访问你的学习数据。')) return;
+            try {
+                const res = await fetch(`/api/openclaw/token/${tokenId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || '撤销失败');
+                loadOpenClawTokens();
+            } catch (err) {
+                alert('撤销失败: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>

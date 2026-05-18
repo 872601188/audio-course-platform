@@ -20,7 +20,6 @@
                 <div class="flex items-center space-x-4">
                     <a href="/favorites.html" class="text-gray-600 hover:text-blue-600 text-sm">我的收藏</a>
                     <a href="/analyze.html" class="text-gray-600 hover:text-blue-600 text-sm">学习分析</a>
-                    <a href="/admin.html" class="text-gray-600 hover:text-blue-600 text-sm hidden" id="admin-link">管理后台</a>
                     <div id="nav-user"></div>
                 </div>
             </div>
@@ -50,12 +49,6 @@
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
     <script src="/js/app.js"></script>
-    <script>
-        // 检查管理员权限显示管理链接
-        const user = JSON.parse(localStorage.getItem('user') || 'null');
-        if (user && user.role === 'admin') {
-            document.getElementById('admin-link').classList.remove('hidden');
-        }
-    </script>
+
 </body>
 </html>

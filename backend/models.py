@@ -12,6 +12,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
+    phone = db.Column(db.String(20), unique=True, nullable=True)
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(20), default='student')  # admin / student
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -28,6 +29,7 @@ class User(db.Model):
             'id': self.id,
             'username': self.username,
             'email': self.email,
+            'phone': self.phone,
             'role': self.role,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
@@ -171,4 +173,95 @@ class StudyLog(db.Model):
             'position': self.position,
             'duration_listened': self.duration_listened,
             'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+# 默认权限集合：所有读取权限 + 计划写入权限
+DEFAULT_OPENCLAW_PERMISSIONS = [
+    'read:courses', 'read:progress', 'read:history', 'read:stats',
+    'read:reminder', 'read:plan', 'write:plan', 'write:progress'
+]
+
+ALL_OPENCLAW_PERMISSIONS = [
+    {'key': 'read:courses', 'label': '获取课程列表', 'category': '读取'},
+    {'key': 'read:progress', 'label': '获取学习进度', 'category': '读取'},
+    {'key': 'read:history', 'label': '获取学习历史', 'category': '读取'},
+    {'key': 'read:stats', 'label': '获取学习统计', 'category': '读取'},
+    {'key': 'read:reminder', 'label': '获取督促提醒', 'category': '读取'},
+    {'key': 'read:plan', 'label': '获取学习计划', 'category': '读取'},
+    {'key': 'write:plan', 'label': '创建/更新学习计划', 'category': '写入'},
+    {'key': 'delete:plan', 'label': '删除学习计划', 'category': '删除'},
+    {'key': 'write:progress', 'label': '更新学习进度', 'category': '写入'},
+]
+
+
+class OpenClawToken(db.Model):
+    """OpenClaw API 访问令牌 - 每个用户可生成独立 Token
+    支持有效期和细粒度权限控制。
+    """
+    __tablename__ = 'openclaw_tokens'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False)
+    name = db.Column(db.String(100), default='OpenClaw')
+    is_active = db.Column(db.Boolean, default=True)
+    # 有效期：默认 3 个月（90 天）
+    expires_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.utcnow() + timedelta(days=90))
+    # 权限：JSON 数组字符串，如 ["read:courses", "write:plan"]
+    permissions = db.Column(db.Text, default=lambda: json.dumps(DEFAULT_OPENCLAW_PERMISSIONS))
+    last_used_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'name': self.name,
+            'is_active': self.is_active,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'permissions': json.loads(self.permissions) if self.permissions else [],
+            'last_used_at': self.last_used_at.isoformat() if self.last_used_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+    def is_expired(self):
+        """检查 Token 是否已过期"""
+        return datetime.utcnow() > self.expires_at
+
+    def has_permission(self, permission):
+        """检查是否拥有指定权限"""
+        perms = json.loads(self.permissions) if self.permissions else []
+        return permission in perms
+
+
+class StudyPlan(db.Model):
+    """学习计划 - 用户每日/每周学习目标"""
+    __tablename__ = 'study_plans'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    plan_type = db.Column(db.String(20), nullable=False)  # daily / weekly
+    target_date = db.Column(db.Date, nullable=False)
+    target_minutes = db.Column(db.Integer, default=30)
+    target_courses = db.Column(db.Text)  # JSON 数组
+    focus_areas = db.Column(db.Text)  # JSON 数组
+    status = db.Column(db.String(20), default='active')  # active / completed / skipped
+    note = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'plan_type': self.plan_type,
+            'target_date': self.target_date.isoformat() if self.target_date else None,
+            'target_minutes': self.target_minutes,
+            'target_courses': json.loads(self.target_courses) if self.target_courses else [],
+            'focus_areas': json.loads(self.focus_areas) if self.focus_areas else [],
+            'status': self.status,
+            'note': self.note,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
