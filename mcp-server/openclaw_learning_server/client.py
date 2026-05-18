@@ -107,5 +107,51 @@ class LearningAPIClient:
         resp.raise_for_status()
         return resp.json()
 
+    def ai_generate_plan(self, learning_goal: str = '', daily_available_minutes: int = 60,
+                         plan_days: int = 7, target_courses: Optional[list] = None,
+                         focus_areas: Optional[list] = None) -> dict:
+        """AI 生成学习计划"""
+        payload = {
+            'learning_goal': learning_goal,
+            'daily_available_minutes': daily_available_minutes,
+            'plan_days': plan_days,
+            'target_courses': target_courses or [],
+            'focus_areas': focus_areas or []
+        }
+        resp = self.client.post(self._url('/plan/ai-generate'), headers=self._headers(), json=payload)
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_plan_execution(self, plan_id: int = 0, exec_date: str = '', status: str = '') -> dict:
+        """获取计划执行列表"""
+        params = {}
+        if plan_id:
+            params['plan_id'] = plan_id
+        if exec_date:
+            params['date'] = exec_date
+        if status:
+            params['status'] = status
+        resp = self.client.get(self._url('/plan/execution'), headers=self._headers(), params=params)
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_plan_progress(self, plan_id: int = 0) -> dict:
+        """获取计划总体完成进度"""
+        params = {}
+        if plan_id:
+            params['plan_id'] = plan_id
+        resp = self.client.get(self._url('/plan/progress'), headers=self._headers(), params=params)
+        resp.raise_for_status()
+        return resp.json()
+
+    def sync_plan_execution(self, plan_id: int = 0) -> dict:
+        """自动同步计划执行状态"""
+        params = {}
+        if plan_id:
+            params['plan_id'] = plan_id
+        resp = self.client.post(self._url('/plan/sync'), headers=self._headers(), params=params)
+        resp.raise_for_status()
+        return resp.json()
+
     def close(self):
         self.client.close()

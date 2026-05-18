@@ -14,7 +14,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from backend.models import (
     db, User, Course, AudioFile, PlaybackProgress, StudyLog,
-    OpenClawToken, StudyPlan, ALL_OPENCLAW_PERMISSIONS, DEFAULT_OPENCLAW_PERMISSIONS
+    OpenClawToken, StudyPlan, PlanExecution, ALL_OPENCLAW_PERMISSIONS, DEFAULT_OPENCLAW_PERMISSIONS
 )
 
 openclaw_bp = Blueprint('openclaw', __name__)
@@ -570,22 +570,24 @@ def create_plan():
 @openclaw_auth_required
 @require_permission('read:plan')
 def get_plan():
-    """获取当前学习计划"""
+    """获取当前学习计划
+    支持按 type 筛选，默认返回最新的活跃计划（不限类型）。
+    """
     user = g.current_user
-    plan_type = request.args.get('type', 'daily')
+    plan_type = request.args.get('type')
     target_date_str = request.args.get('date')
 
-    query = StudyPlan.query.filter_by(user_id=user.id, plan_type=plan_type)
+    query = StudyPlan.query.filter_by(user_id=user.id, status='active')
+    if plan_type:
+        query = query.filter_by(plan_type=plan_type)
     if target_date_str:
         try:
             target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
             query = query.filter_by(target_date=target_date)
         except ValueError:
             return jsonify({'error': 'date 格式应为 YYYY-MM-DD'}), 400
-    else:
-        query = query.filter(StudyPlan.target_date <= date.today())
 
-    plan = query.order_by(StudyPlan.target_date.desc()).first()
+    plan = query.order_by(StudyPlan.created_at.desc()).first()
 
     if not plan:
         return jsonify({'plan': None, 'message': '暂无学习计划'}), 200
@@ -679,4 +681,359 @@ def update_progress():
         'audio_id': audio_id,
         'current_time': current_time,
         'completed': completed
+    }), 200
+
+
+# ========== AI 学习计划与执行跟踪 ==========
+
+try:
+    from backend.services.ai_scheduler import generate_study_plan, create_executions_from_schedule
+except ImportError:
+    from services.ai_scheduler import generate_study_plan, create_executions_from_schedule
+
+
+@openclaw_bp.route('/openclaw/plan/ai-generate', methods=['POST'])
+@openclaw_auth_required
+@require_permission('write:plan')
+def ai_generate_plan():
+    """AI 生成学习计划
+    接收学习目标、每日时间、周期、课程，调用 LLM 或本地引擎生成详细时间安排。
+    """
+    user = g.current_user
+    data = request.get_json() or {}
+
+    goal = data.get('learning_goal', '').strip()
+    daily_minutes = data.get('daily_available_minutes', 60)
+    plan_days = data.get('plan_days', 7)
+    target_course_ids = data.get('target_courses', [])
+
+    if not target_course_ids:
+        return jsonify({'error': '请至少选择一门课程'}), 400
+
+    if daily_minutes < 15 or daily_minutes > 480:
+        return jsonify({'error': '每日可用时间需在 15-480 分钟之间'}), 400
+
+    if plan_days < 1 or plan_days > 90:
+        return jsonify({'error': '计划周期需在 1-90 天之间'}), 400
+
+    # 查询课程详情（含音频列表和当前进度）
+    courses = []
+    for cid in target_course_ids:
+        course = Course.query.get(cid)
+        if not course:
+            continue
+        audios = AudioFile.query.filter_by(course_id=cid).order_by(AudioFile.order_index).all()
+
+        # 计算用户在该课程的进度
+        total_duration = sum(a.duration for a in audios)
+        listened_duration = 0
+        for audio in audios:
+            prog = PlaybackProgress.query.filter_by(user_id=user.id, audio_id=audio.id).first()
+            if prog:
+                listened_duration += min(prog.current_time, audio.duration)
+
+        progress_percent = round(listened_duration / total_duration * 100, 1) if total_duration > 0 else 0
+
+        courses.append({
+            'id': course.id,
+            'title': course.title,
+            'category': course.category,
+            'audio_count': len(audios),
+            'total_minutes': round(total_duration / 60, 1),
+            'progress_percent': progress_percent,
+            'audio_files': [
+                {'id': a.id, 'title': a.title, 'duration': a.duration}
+                for a in audios
+            ]
+        })
+
+    if not courses:
+        return jsonify({'error': '所选课程不存在'}), 400
+
+    # 学习历史摘要
+    recent_logs = StudyLog.query.filter(
+        StudyLog.user_id == user.id
+    ).order_by(StudyLog.created_at.desc()).limit(20).all()
+
+    history_summary = ''
+    if recent_logs:
+        courses_studied = set()
+        total_recent_minutes = 0
+        for log in recent_logs:
+            audio = AudioFile.query.get(log.audio_id)
+            if audio:
+                courses_studied.add(audio.course_id)
+            total_recent_minutes += log.duration_listened
+        history_summary = (
+            f"最近学习了 {len(courses_studied)} 门课程，"
+            f"总时长 {round(total_recent_minutes / 60, 1)} 分钟"
+        )
+
+    # 调用 AI 生成
+    result = generate_study_plan(
+        user=user,
+        courses=courses,
+        goal=goal,
+        daily_minutes=daily_minutes,
+        plan_days=plan_days,
+        history_summary=history_summary
+    )
+
+    schedule = result['schedule']
+    if not schedule:
+        return jsonify({'error': '生成计划失败，课程数据不足'}), 400
+
+    # 保存 StudyPlan
+    start_date = date.today()
+    end_date = start_date + timedelta(days=plan_days - 1)
+
+    plan = StudyPlan(
+        user_id=user.id,
+        plan_type='custom',
+        target_date=end_date,
+        target_minutes=result['total_expected_minutes'],
+        target_courses=json.dumps(target_course_ids),
+        focus_areas=json.dumps(data.get('focus_areas', [])),
+        note=f"AI 生成计划（来源：{result['source']}）",
+        ai_generated=result['ai_generated'],
+        schedule=json.dumps(schedule),
+        total_expected_minutes=result['total_expected_minutes'],
+        learning_goal=goal
+    )
+    db.session.add(plan)
+    db.session.flush()  # 获取 plan.id
+
+    # 生成 PlanExecution 记录
+    create_executions_from_schedule(plan.id, user.id, schedule)
+    db.session.commit()
+
+    return jsonify({
+        'message': 'AI 学习计划生成成功',
+        'plan_id': plan.id,
+        'ai_generated': result['ai_generated'],
+        'source': result['source'],
+        'total_expected_minutes': result['total_expected_minutes'],
+        'schedule': schedule
+    }), 201
+
+
+@openclaw_bp.route('/openclaw/plan/execution', methods=['GET'])
+@openclaw_auth_required
+@require_permission('read:plan')
+def get_plan_execution():
+    """获取计划执行列表
+    支持按日期、状态筛选
+    """
+    user = g.current_user
+    plan_id = request.args.get('plan_id', type=int)
+    exec_date = request.args.get('date')
+    status = request.args.get('status')
+
+    query = PlanExecution.query.filter_by(user_id=user.id)
+    if plan_id:
+        query = query.filter_by(plan_id=plan_id)
+    if exec_date:
+        try:
+            d = datetime.strptime(exec_date, '%Y-%m-%d').date()
+            query = query.filter_by(scheduled_date=d)
+        except ValueError:
+            return jsonify({'error': 'date 格式应为 YYYY-MM-DD'}), 400
+    if status:
+        query = query.filter_by(status=status)
+
+    executions = query.order_by(PlanExecution.scheduled_date, PlanExecution.scheduled_time).all()
+
+    result = []
+    for e in executions:
+        course = Course.query.get(e.course_id) if e.course_id else None
+        audio = AudioFile.query.get(e.audio_id) if e.audio_id else None
+        result.append({
+            'id': e.id,
+            'plan_id': e.plan_id,
+            'scheduled_date': e.scheduled_date.isoformat() if e.scheduled_date else None,
+            'scheduled_time': e.scheduled_time,
+            'course': {
+                'id': course.id if course else None,
+                'title': course.title if course else '未知课程'
+            },
+            'audio': {
+                'id': audio.id if audio else None,
+                'title': audio.title if audio else '未知音频'
+            },
+            'expected_minutes': e.expected_minutes,
+            'actual_minutes': e.actual_minutes,
+            'status': e.status,
+            'completed_at': e.completed_at.isoformat() if e.completed_at else None,
+            'note': e.note
+        })
+
+    # 统计
+    total = len(result)
+    completed = sum(1 for e in result if e['status'] == 'completed')
+    pending = sum(1 for e in result if e['status'] == 'pending')
+    skipped = sum(1 for e in result if e['status'] == 'skipped')
+    in_progress = sum(1 for e in result if e['status'] == 'in_progress')
+
+    return jsonify({
+        'executions': result,
+        'summary': {
+            'total': total,
+            'completed': completed,
+            'pending': pending,
+            'skipped': skipped,
+            'in_progress': in_progress,
+            'completion_rate': round(completed / total * 100, 1) if total > 0 else 0
+        }
+    }), 200
+
+
+@openclaw_bp.route('/openclaw/plan/execution/<int:execution_id>', methods=['POST'])
+@openclaw_auth_required
+@require_permission('write:plan')
+def update_execution(execution_id):
+    """更新计划执行状态/时长"""
+    user = g.current_user
+    execution = PlanExecution.query.filter_by(id=execution_id, user_id=user.id).first()
+    if not execution:
+        return jsonify({'error': '执行记录不存在'}), 404
+
+    data = request.get_json() or {}
+
+    if 'actual_minutes' in data:
+        execution.actual_minutes = float(data['actual_minutes'])
+    if 'status' in data:
+        execution.status = data['status']
+        if data['status'] == 'completed' and not execution.completed_at:
+            execution.completed_at = datetime.utcnow()
+    if 'note' in data:
+        execution.note = data['note']
+
+    db.session.commit()
+
+    return jsonify({
+        'message': '执行记录已更新',
+        'execution': {
+            'id': execution.id,
+            'status': execution.status,
+            'actual_minutes': execution.actual_minutes,
+            'completed_at': execution.completed_at.isoformat() if execution.completed_at else None
+        }
+    }), 200
+
+
+@openclaw_bp.route('/openclaw/plan/progress', methods=['GET'])
+@openclaw_auth_required
+@require_permission('read:plan')
+def get_plan_progress():
+    """获取计划总体完成进度"""
+    user = g.current_user
+    plan_id = request.args.get('plan_id', type=int)
+
+    # 查找当前活跃的计划
+    if plan_id:
+        plan = StudyPlan.query.filter_by(id=plan_id, user_id=user.id).first()
+    else:
+        plan = StudyPlan.query.filter_by(
+            user_id=user.id, status='active'
+        ).order_by(StudyPlan.created_at.desc()).first()
+
+    if not plan:
+        return jsonify({'plan': None, 'message': '暂无学习计划'}), 200
+
+    # 统计执行记录
+    executions = PlanExecution.query.filter_by(plan_id=plan.id, user_id=user.id).all()
+    total = len(executions)
+    completed = sum(1 for e in executions if e.status == 'completed')
+    total_actual = sum(e.actual_minutes for e in executions)
+
+    # 今日待执行
+    today = date.today()
+    today_executions = PlanExecution.query.filter_by(
+        plan_id=plan.id, user_id=user.id, scheduled_date=today
+    ).order_by(PlanExecution.scheduled_time).all()
+
+    today_list = []
+    for e in today_executions:
+        course = Course.query.get(e.course_id) if e.course_id else None
+        audio = AudioFile.query.get(e.audio_id) if e.audio_id else None
+        today_list.append({
+            'id': e.id,
+            'scheduled_time': e.scheduled_time,
+            'course_title': course.title if course else '未知课程',
+            'audio_title': audio.title if audio else '未知音频',
+            'expected_minutes': e.expected_minutes,
+            'actual_minutes': e.actual_minutes,
+            'status': e.status
+        })
+
+    return jsonify({
+        'plan': plan.to_dict(),
+        'progress': {
+            'total_slots': total,
+            'completed_slots': completed,
+            'completion_rate': round(completed / total * 100, 1) if total > 0 else 0,
+            'total_expected_minutes': plan.total_expected_minutes,
+            'total_actual_minutes': round(total_actual, 1)
+        },
+        'today_tasks': today_list
+    }), 200
+
+
+@openclaw_bp.route('/openclaw/plan/sync', methods=['POST'])
+@openclaw_auth_required
+@require_permission('write:plan')
+def sync_plan_execution():
+    """根据 PlaybackProgress 和 StudyLog 自动同步 PlanExecution 状态"""
+    user = g.current_user
+    plan_id = request.args.get('plan_id', type=int)
+
+    # 查找计划
+    if plan_id:
+        plan = StudyPlan.query.filter_by(id=plan_id, user_id=user.id).first()
+    else:
+        plan = StudyPlan.query.filter_by(
+            user_id=user.id, status='active'
+        ).order_by(StudyPlan.created_at.desc()).first()
+
+    if not plan:
+        return jsonify({'message': '暂无需要同步的计划'}), 200
+
+    # 获取该计划下的所有执行记录
+    executions = PlanExecution.query.filter_by(plan_id=plan.id, user_id=user.id).all()
+    synced_count = 0
+    today = date.today()
+
+    for execution in executions:
+        if execution.status in ('completed', 'skipped'):
+            continue
+
+        # 查找当天的学习日志
+        logs = StudyLog.query.filter(
+            StudyLog.user_id == user.id,
+            StudyLog.audio_id == execution.audio_id,
+            StudyLog.created_at >= datetime.combine(execution.scheduled_date, datetime.min.time()),
+            StudyLog.created_at < datetime.combine(execution.scheduled_date + timedelta(days=1), datetime.min.time())
+        ).all()
+
+        if not logs:
+            continue
+
+        total_listened = sum(l.duration_listened for l in logs)
+        execution.actual_minutes = round(total_listened / 60, 1)
+
+        # 如果实际时长达到预期的 80%，标记为完成
+        threshold = execution.expected_minutes * 0.8
+        if execution.actual_minutes >= threshold:
+            execution.status = 'completed'
+            execution.completed_at = datetime.utcnow()
+        elif execution.actual_minutes > 0:
+            execution.status = 'in_progress'
+
+        synced_count += 1
+
+    db.session.commit()
+
+    return jsonify({
+        'message': f'同步完成，共更新 {synced_count} 条执行记录',
+        'synced_count': synced_count
     }), 200

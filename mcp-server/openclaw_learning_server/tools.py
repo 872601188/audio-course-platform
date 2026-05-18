@@ -131,3 +131,61 @@ def register_tools(mcp: FastMCP, client: LearningAPIClient):
             completed=completed,
             duration_listened=duration_listened
         )
+
+    @mcp.tool()
+    def generate_ai_study_plan(
+        learning_goal: str = '',
+        daily_available_minutes: int = 60,
+        plan_days: int = 7,
+        target_courses: list = None,
+        focus_areas: list = None
+    ) -> dict:
+        """
+        AI 生成详细学习计划（含时间安排）。
+        根据课程列表、用户进度和学习目标，自动生成每日时段安排。
+        Args:
+            learning_goal: 学习目标描述，如"2周内掌握Python基础"
+            daily_available_minutes: 每日可用学习时间（分钟），默认60
+            plan_days: 计划周期天数（1-90），默认7
+            target_courses: 目标课程ID列表
+            focus_areas: 重点领域列表
+        """
+        return client.ai_generate_plan(
+            learning_goal=learning_goal,
+            daily_available_minutes=daily_available_minutes,
+            plan_days=plan_days,
+            target_courses=target_courses or [],
+            focus_areas=focus_areas or []
+        )
+
+    @mcp.tool()
+    def get_plan_execution(plan_id: int = 0, exec_date: str = '', status: str = '') -> dict:
+        """
+        获取学习计划执行详情。
+        返回每个时段的预期 vs 实际完成情况。
+        Args:
+            plan_id: 计划ID，留空查询最新计划
+            exec_date: 筛选指定日期，格式 YYYY-MM-DD
+            status: 筛选状态：pending / in_progress / completed / skipped
+        """
+        return client.get_plan_execution(plan_id=plan_id, exec_date=exec_date, status=status)
+
+    @mcp.tool()
+    def get_plan_progress(plan_id: int = 0) -> dict:
+        """
+        获取学习计划总体完成进度。
+        包含完成率、今日待办任务列表。
+        Args:
+            plan_id: 计划ID，留空查询最新计划
+        """
+        return client.get_plan_progress(plan_id=plan_id)
+
+    @mcp.tool()
+    def sync_plan_execution(plan_id: int = 0) -> dict:
+        """
+        根据实际学习记录自动同步计划执行状态。
+        将 PlaybackProgress 和 StudyLog 的数据同步到 PlanExecution。
+        Args:
+            plan_id: 计划ID，留空同步最新计划
+        """
+        return client.sync_plan_execution(plan_id=plan_id)

@@ -52,8 +52,9 @@
 audio-course-platform/
 ├── backend/
 │   ├── app.py                 # 应用工厂 create_app()，静态文件服务
-│   ├── models.py              # SQLAlchemy 模型（7 张表）
+│   ├── models.py              # SQLAlchemy 模型（9 张表）
 │   ├── init_db.py             # 初始化数据库：创建表 + 默认账号 + 示例课程
+│   ├── migrate_db.py          # 数据库迁移：SQLite ALTER TABLE 添加新列
 │   ├── requirements.txt       # Python 依赖（12 个固定版本）
 │   ├── __init__.py
 │   ├── routes/
@@ -63,10 +64,11 @@ audio-course-platform/
 │   │   ├── upload.py          # 音频/封面上传、文件读取、批量删除
 │   │   ├── player.py          # 收藏、播放进度、学习日志、音频流
 │   │   ├── analyze.py         # AI 学习分析、学习统计仪表盘
-│   │   └── openclaw.py        # OpenClaw Token / 计划 / 进度 / 历史 / 提醒
+│   │   └── openclaw.py        # OpenClaw Token / 计划 / 进度 / 历史 / 提醒 / AI 生成
 │   └── services/
 │       ├── __init__.py
-│       └── openclaw_bridge.py # 学习分析业务逻辑（本地规则引擎）
+│       ├── openclaw_bridge.py # 学习分析业务逻辑（本地规则引擎）
+│       └── ai_scheduler.py    # AI 学习计划生成（LLM + 本地回退）
 ├── frontend/
 │   ├── index.html             # 首页：课程列表
 │   ├── login.html             # 登录 / 注册
@@ -86,7 +88,7 @@ audio-course-platform/
 │       ├── __init__.py
 │       ├── server.py          # FastMCP 初始化 + stdio 运行入口
 │       ├── client.py          # LearningAPIClient：HTTP 调用 backend
-│       └── tools.py           # 9 个 MCP Tool 定义
+│       └── tools.py           # 13 个 MCP Tool 定义
 ├── Dockerfile
 ├── docker-compose.yml
 ├── run_init.sh                # 初始化脚本（含硬编码绝对路径）
@@ -99,7 +101,7 @@ audio-course-platform/
 
 ## 数据库模型
 
-共 7 张表，定义在 `backend/models.py`：
+共 9 张表，定义在 `backend/models.py`：
 
 | 模型 | 说明 | 级联删除 |
 |------|------|----------|
@@ -110,7 +112,8 @@ audio-course-platform/
 | `Favorite` | 用户收藏 | — |
 | `StudyLog` | 播放/暂停/跳转等原始行为日志 | — |
 | `OpenClawToken` | 外部 MCP/CLI 使用的 API Token（SHA-256 存储） | — |
-| `StudyPlan` | 学习计划（日/周目标） | — |
+| `StudyPlan` | 学习计划（日/周/AI 生成目标） | — |
+| `PlanExecution` | 计划执行追踪（每个时段的预期 vs 实际） | — |
 
 关系：
 - `User` 1:N `PlaybackProgress`、`Course`、`Favorite`

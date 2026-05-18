@@ -236,18 +236,25 @@ class OpenClawToken(db.Model):
 
 
 class StudyPlan(db.Model):
-    """学习计划 - 用户每日/每周学习目标"""
+    """学习计划 - 用户每日/每周学习目标
+    支持 AI 生成详细时间安排（schedule JSON）。
+    """
     __tablename__ = 'study_plans'
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    plan_type = db.Column(db.String(20), nullable=False)  # daily / weekly
+    plan_type = db.Column(db.String(20), nullable=False)  # daily / weekly / custom
     target_date = db.Column(db.Date, nullable=False)
     target_minutes = db.Column(db.Integer, default=30)
     target_courses = db.Column(db.Text)  # JSON 数组
     focus_areas = db.Column(db.Text)  # JSON 数组
-    status = db.Column(db.String(20), default='active')  # active / completed / skipped
+    status = db.Column(db.String(20), default='active')  # active / completed / skipped / replaced
     note = db.Column(db.Text)
+    # AI 计划生成扩展字段
+    ai_generated = db.Column(db.Boolean, default=False)
+    schedule = db.Column(db.Text)  # JSON：详细时间安排（含时段、课程、音频）
+    total_expected_minutes = db.Column(db.Integer, default=0)
+    learning_goal = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -262,6 +269,48 @@ class StudyPlan(db.Model):
             'focus_areas': json.loads(self.focus_areas) if self.focus_areas else [],
             'status': self.status,
             'note': self.note,
+            'ai_generated': self.ai_generated,
+            'schedule': json.loads(self.schedule) if self.schedule else [],
+            'total_expected_minutes': self.total_expected_minutes,
+            'learning_goal': self.learning_goal,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class PlanExecution(db.Model):
+    """计划执行跟踪 — 每个时段一条记录
+    用于记录预期 vs 实际完成情况，供 OpenClaw 查询。
+    """
+    __tablename__ = 'plan_executions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    plan_id = db.Column(db.Integer, db.ForeignKey('study_plans.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    scheduled_date = db.Column(db.Date, nullable=False)
+    scheduled_time = db.Column(db.String(10))       # HH:MM
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'))
+    audio_id = db.Column(db.Integer, db.ForeignKey('audio_files.id'))
+    expected_minutes = db.Column(db.Integer, default=0)
+    actual_minutes = db.Column(db.Float, default=0.0)
+    status = db.Column(db.String(20), default='pending')  # pending / in_progress / completed / skipped
+    completed_at = db.Column(db.DateTime)
+    note = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'plan_id': self.plan_id,
+            'user_id': self.user_id,
+            'scheduled_date': self.scheduled_date.isoformat() if self.scheduled_date else None,
+            'scheduled_time': self.scheduled_time,
+            'course_id': self.course_id,
+            'audio_id': self.audio_id,
+            'expected_minutes': self.expected_minutes,
+            'actual_minutes': self.actual_minutes,
+            'status': self.status,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'note': self.note,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
