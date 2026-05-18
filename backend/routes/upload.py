@@ -254,3 +254,77 @@ def serve_uploaded_file(filename):
 
 # 兼容 Flask 的 send_from_directory 导入
 from flask import send_from_directory
+
+
+@upload_bp.route('/upload/audio/<int:audio_id>', methods=['DELETE'])
+@jwt_required()
+def delete_audio_file(audio_id):
+    """删除单个音频文件 - 仅管理员"""
+    user_id = get_jwt_identity()
+    current_user = User.query.get(int(user_id))
+
+    if not current_user or current_user.role != 'admin':
+        return jsonify({'error': '权限不足'}), 403
+
+    audio = AudioFile.query.get_or_404(audio_id)
+
+    # 删除物理文件
+    if audio.storage_type == 'local' and os.path.exists(audio.file_path):
+        try:
+            os.remove(audio.file_path)
+        except Exception as e:
+            print(f"删除物理文件失败: {e}")
+
+    # 删除数据库记录（PlaybackProgress 会自动级联删除）
+    db.session.delete(audio)
+    db.session.commit()
+
+    return jsonify({
+        'message': '音频文件已删除',
+        'deleted_id': audio_id
+    }), 200
+
+
+@upload_bp.route('/upload/audio/batch', methods=['DELETE'])
+@jwt_required()
+def delete_audio_batch():
+    """批量删除音频文件 - 仅管理员"""
+    user_id = get_jwt_identity()
+    current_user = User.query.get(int(user_id))
+
+    if not current_user or current_user.role != 'admin':
+        return jsonify({'error': '权限不足'}), 403
+
+    data = request.get_json() or {}
+    audio_ids = data.get('audio_ids', [])
+
+    if not audio_ids or not isinstance(audio_ids, list):
+        return jsonify({'error': '请提供 audio_ids 数组'}), 400
+
+    deleted = []
+    errors = []
+
+    for audio_id in audio_ids:
+        audio = AudioFile.query.get(audio_id)
+        if not audio:
+            errors.append(f'ID {audio_id}: 不存在')
+            continue
+
+        # 删除物理文件
+        if audio.storage_type == 'local' and os.path.exists(audio.file_path):
+            try:
+                os.remove(audio.file_path)
+            except Exception as e:
+                errors.append(f'ID {audio_id}: 物理文件删除失败 ({e})')
+
+        # 删除数据库记录
+        db.session.delete(audio)
+        deleted.append(audio_id)
+
+    db.session.commit()
+
+    return jsonify({
+        'message': f'已删除 {len(deleted)} 个音频文件',
+        'deleted': deleted,
+        'errors': errors
+    }), 200

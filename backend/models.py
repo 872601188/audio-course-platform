@@ -20,6 +20,8 @@ class User(db.Model):
     progress_records = db.relationship('PlaybackProgress', backref='user', lazy=True,
                                         cascade='all, delete-orphan')
     courses_created = db.relationship('Course', backref='creator', lazy=True)
+    favorites = db.relationship('Favorite', backref='user', lazy=True,
+                                 cascade='all, delete-orphan')
 
     def to_dict(self):
         return {
@@ -122,6 +124,27 @@ class PlaybackProgress(db.Model):
             'completed': self.completed,
             'last_played_at': self.last_played_at.isoformat() if self.last_played_at else None,
             'play_count': self.play_count
+        }
+
+
+class Favorite(db.Model):
+    """用户收藏 - 收藏音频文件"""
+    __tablename__ = 'favorites'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    audio_id = db.Column(db.Integer, db.ForeignKey('audio_files.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # 唯一约束：每个用户每个音频只收藏一次
+    __table_args__ = (db.UniqueConstraint('user_id', 'audio_id', name='uix_user_audio_fav'),)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'audio_id': self.audio_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 

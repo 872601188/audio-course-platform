@@ -3,16 +3,100 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 
 try:
-    from backend.models import db, User, AudioFile, Course, PlaybackProgress, StudyLog
+    from backend.models import db, User, AudioFile, Course, PlaybackProgress, StudyLog, Favorite
 except ImportError:
-    from models import db, User, AudioFile, Course, PlaybackProgress, StudyLog
+    from models import db, User, AudioFile, Course, PlaybackProgress, StudyLog, Favorite
 
 player_bp = Blueprint('player', __name__)
 
 
-@player_bp.route('/progress/<int:audio_id>', methods=['GET'])
+@player_bp.route('/favorites/<int:audio_id>', methods=['POST'])
 @jwt_required()
-def get_progress(audio_id):
+def toggle_favorite(audio_id):
+    """收藏/取消收藏 - toggle模式"""
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+    if not user:
+        return jsonify({'error': '用户不存在'}), 404
+
+    audio = AudioFile.query.get(audio_id)
+    if not audio:
+        return jsonify({'error': '音频不存在'}), 404
+
+    fav = Favorite.query.filter_by(user_id=user.id, audio_id=audio_id).first()
+
+    if fav:
+        db.session.delete(fav)
+        db.session.commit()
+        return jsonify({'favorited': False, 'message': '已取消收藏'}), 200
+    else:
+        fav = Favorite(user_id=user.id, audio_id=audio_id)
+        db.session.add(fav)
+        db.session.commit()
+        return jsonify({'favorited': True, 'message': '已收藏'}), 201
+
+
+@player_bp.route('/favorites/<int:audio_id>', methods=['GET'])
+@jwt_required()
+def check_favorite(audio_id):
+    """检查用户是否收藏了某个音频"""
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+    if not user:
+        return jsonify({'error': '用户不存在'}), 404
+
+    audio = AudioFile.query.get(audio_id)
+    if not audio:
+        return jsonify({'error': '音频不存在'}), 404
+
+    fav = Favorite.query.filter_by(user_id=user.id, audio_id=audio_id).first()
+    return jsonify({'favorited': bool(fav)}), 200
+
+
+@player_bp.route('/favorites', methods=['GET'])
+@jwt_required()
+def get_favorites():
+    """获取用户收藏列表"""
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+    if not user:
+        return jsonify({'error': '用户不存在'}), 404
+
+    favs = Favorite.query.filter_by(user_id=user.id).order_by(Favorite.created_at.desc()).all()
+
+    result = []
+    for fav in favs:
+        audio = AudioFile.query.get(fav.audio_id)
+        if not audio:
+            continue
+        course = Course.query.get(audio.course_id)
+        result.append({
+            'favorite_id': fav.id,
+            'audio_id': audio.id,
+            'audio_title': audio.title,
+            'duration': audio.duration,
+            'course_id': course.id if course else None,
+            'course_title': course.title if course else '未知课程',
+            'created_at': fav.created_at.isoformat() if fav.created_at else None
+        })
+
+    return jsonify({'favorites': result}), 200
+
+
+@player_bp.route('/favorites', methods=['DELETE'])
+@jwt_required()
+def clear_favorites():
+    """清空所有收藏"""
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+    if not user:
+        return jsonify({'error': '用户不存在'}), 404
+
+    Favorite.query.filter_by(user_id=user.id).delete()
+    db.session.commit()
+    return jsonify({'message': '收藏已清空'}), 200
+
+
     """获取用户对某个音频的播放进度"""
     user_id = get_jwt_identity()
     user = User.query.get(int(user_id))

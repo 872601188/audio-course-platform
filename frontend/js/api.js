@@ -116,21 +116,91 @@ const CourseAPI = {
 // ========== 上传 API ==========
 
 const UploadAPI = {
-    async uploadAudio(files, courseId, titles = []) {
-        const formData = new FormData();
-        formData.append('course_id', courseId);
-        files.forEach((file, i) => {
-            formData.append('files', file);
-            if (titles[i]) {
-                formData.append(`title_${i}`, titles[i]);
-            }
-        });
+    /**
+     * 上传音频（支持进度回调）
+     * @param {File[]} files 文件列表
+     * @param {number} courseId 课程ID
+     * @param {string[]} titles 标题列表
+     * @param {function} onProgress 进度回调 (event) => void
+     *   event: { loaded, total, percent, fileIndex, fileCount, fileName, speed }
+     */
+    uploadAudio(files, courseId, titles = [], onProgress = null) {
+        return new Promise((resolve, reject) => {
+            const formData = new FormData();
+            formData.append('course_id', courseId);
+            files.forEach((file, i) => {
+                formData.append('files', file);
+                if (titles[i]) {
+                    formData.append(`title_${i}`, titles[i]);
+                }
+            });
 
-        return fetch(`${API_BASE}/api/upload/audio`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` },
-            body: formData
-        }).then(r => r.json());
+            const xhr = new XMLHttpRequest();
+            const token = localStorage.getItem('access_token');
+
+            xhr.open('POST', `${API_BASE}/api/upload/audio`);
+            if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+            // 进度监控
+            if (onProgress && xhr.upload) {
+                let lastLoaded = 0;
+                let lastTime = Date.now();
+                xhr.upload.onprogress = (e) => {
+                    if (!e.lengthComputable) return;
+                    const now = Date.now();
+                    const dt = (now - lastTime) / 1000;
+                    const speed = dt > 0 ? (e.loaded - lastLoaded) / dt : 0;
+                    lastLoaded = e.loaded;
+                    lastTime = now;
+
+                    // 计算每个文件的大致进度（基于文件大小比例）
+                    const totalSize = files.reduce((s, f) => s + f.size, 0);
+                    let cumulative = 0;
+                    let currentIndex = 0;
+                    for (let i = 0; i < files.length; i++) {
+                        if (cumulative + files[i].size >= e.loaded) {
+                            currentIndex = i;
+                            break;
+                        }
+                        cumulative += files[i].size;
+                    }
+
+                    onProgress({
+                        loaded: e.loaded,
+                        total: e.total,
+                        percent: Math.round((e.loaded / e.total) * 100),
+                        fileIndex: currentIndex,
+                        fileCount: files.length,
+                        fileName: files[currentIndex]?.name || '',
+                        speed: speed
+                    });
+                };
+            }
+
+            xhr.onload = () => {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(data);
+                    } else if (xhr.status === 401) {
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('user');
+                        window.location.href = '/login.html';
+                        reject(new Error('认证已过期，请重新登录'));
+                    } else {
+                        reject(new Error(data.error || `上传失败 (${xhr.status})`));
+                    }
+                } catch {
+                    reject(new Error('解析响应失败'));
+                }
+            };
+
+            xhr.onerror = () => reject(new Error('网络错误，上传失败'));
+            xhr.ontimeout = () => reject(new Error('上传超时'));
+            xhr.onabort = () => reject(new Error('上传已取消'));
+
+            xhr.send(formData);
+        });
     },
 
     async uploadCover(file) {
@@ -173,6 +243,26 @@ const PlayerAPI = {
 
     async getAllProgress() {
         return apiFetch('/api/progress/all');
+    }
+};
+
+// ========== 收藏 API ==========
+
+const FavoriteAPI = {
+    async toggle(audioId) {
+        return apiFetch(`/api/favorites/${audioId}`, { method: 'POST' });
+    },
+
+    async check(audioId) {
+        return apiFetch(`/api/favorites/${audioId}`);
+    },
+
+    async list() {
+        return apiFetch('/api/favorites');
+    },
+
+    async clear() {
+        return apiFetch('/api/favorites', { method: 'DELETE' });
     }
 };
 

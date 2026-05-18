@@ -91,14 +91,6 @@ function setupAudioPlayer() {
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('seeked', onSeeked);
 
-    // 设置倍速选择
-    const speedSelect = document.getElementById('speed-select');
-    if (speedSelect) {
-        speedSelect.addEventListener('change', (e) => {
-            audio.playbackRate = parseFloat(e.target.value);
-        });
-    }
-
     // 进度条拖拽
     const progressBar = document.getElementById('progress-bar');
     if (progressBar) {
@@ -112,7 +104,22 @@ function setupAudioPlayer() {
     }
 }
 
-function loadAudio(index) {
+// 倍速切换
+function setSpeed(speed) {
+    if (!audio) return;
+    audio.playbackRate = speed;
+    // 更新按钮样式
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+        const btnSpeed = parseFloat(btn.dataset.speed);
+        if (btnSpeed === speed) {
+            btn.className = 'speed-btn px-4 py-2 rounded-full text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm';
+        } else {
+            btn.className = 'speed-btn px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition';
+        }
+    });
+}
+
+async function loadAudio(index) {
     if (!currentCourse || !currentCourse.audio_files || index < 0 || index >= currentCourse.audio_files.length) return;
 
     currentAudioIndex = index;
@@ -137,6 +144,9 @@ function loadAudio(index) {
     document.getElementById('current-title').textContent = audioFile.title;
     document.getElementById('current-index').textContent = `${index + 1} / ${currentCourse.audio_files.length}`;
 
+    // 检查收藏状态
+    checkFavoriteStatus(audioFile.id);
+
     // 恢复上次播放位置（断点续播）
     if (audioFile.current_time > 0 && !audioFile.completed) {
         audio.currentTime = audioFile.current_time;
@@ -149,6 +159,68 @@ function loadAudio(index) {
 
     // 自动播放
     audio.play().catch(e => console.log('自动播放被阻止:', e));
+}
+
+// 收藏功能
+let currentAudioIdForFav = null;
+
+async function checkFavoriteStatus(audioId) {
+    currentAudioIdForFav = audioId;
+    try {
+        const data = await FavoriteAPI.check(audioId);
+        updateFavoriteButton(data.favorited);
+    } catch (e) {
+        console.log('收藏状态检查失败:', e);
+    }
+}
+
+function updateFavoriteButton(favorited) {
+    const emptyIcon = document.getElementById('fav-icon-empty');
+    const filledIcon = document.getElementById('fav-icon-filled');
+    const btn = document.getElementById('fav-btn');
+    if (!emptyIcon || !filledIcon) return;
+
+    if (favorited) {
+        emptyIcon.classList.add('hidden');
+        filledIcon.classList.remove('hidden');
+        btn.classList.add('text-red-500');
+        btn.classList.remove('text-gray-400');
+    } else {
+        emptyIcon.classList.remove('hidden');
+        filledIcon.classList.add('hidden');
+        btn.classList.remove('text-red-500');
+        btn.classList.add('text-gray-400');
+    }
+}
+
+async function toggleFavorite() {
+    if (!currentAudioIdForFav) return;
+    try {
+        const data = await FavoriteAPI.toggle(currentAudioIdForFav);
+        updateFavoriteButton(data.favorited);
+        // 显示提示
+        showToast(data.message);
+    } catch (e) {
+        console.error('收藏操作失败:', e);
+        showToast('操作失败，请登录后重试');
+    }
+}
+
+function showToast(message) {
+    const existing = document.getElementById('toast-msg');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'toast-msg';
+    toast.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm animate-fade-in';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
 }
 
 function onTimeUpdate() {
@@ -242,11 +314,10 @@ function onSeeked() {
 }
 
 function updatePlayButton(playing) {
-    const btn = document.getElementById('play-btn');
-    if (!btn) return;
-    btn.innerHTML = playing
-        ? '<svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>'
-        : '<svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+    const playIcon = document.getElementById('play-icon');
+    const pauseIcon = document.getElementById('pause-icon');
+    if (playIcon) playIcon.classList.toggle('hidden', playing);
+    if (pauseIcon) pauseIcon.classList.toggle('hidden', !playing);
 }
 
 function togglePlay() {
