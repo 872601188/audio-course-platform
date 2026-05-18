@@ -225,8 +225,10 @@ def generate_study_plan(user, courses: List[Dict], goal: str, daily_minutes: int
     ai_schedule = _parse_schedule_from_text(ai_text) if ai_text else None
 
     if ai_schedule and isinstance(ai_schedule, list) and len(ai_schedule) > 0:
-        # 验证并补充 schedule
-        for day_item in ai_schedule:
+        # 验证并补充 schedule，修正日期为从今天开始
+        for idx, day_item in enumerate(ai_schedule):
+            correct_date = start_date + timedelta(days=idx)
+            day_item['date'] = correct_date.isoformat()
             for slot in day_item.get('slots', []):
                 if 'audio_title' not in slot:
                     slot['audio_title'] = '未知音频'

@@ -46,6 +46,18 @@ echo "[4/6] 安装依赖..."
 cd "$PROJECT_DIR"
 pip3.11 install -r backend/requirements.txt
 
+# 4.5. 配置 DeepSeek AI 环境变量
+echo "[4.5/6] 配置 AI 环境变量..."
+cat > "$PROJECT_DIR/.env" << 'EOF'
+JWT_SECRET_KEY=audio-course-platform-secret-key-change-me
+SQLITE_DB_PATH=/opt/audio-course/backend/instance/audio_course.db
+UPLOAD_FOLDER=/opt/audio-course/backend/uploads
+AI_API_KEY=sk-ff9cad1d901a40919d835d951455d714
+AI_API_BASE_URL=https://api.deepseek.com/v1
+AI_MODEL=deepseek-chat
+PORT=5000
+EOF
+
 # 5. 数据库迁移
 echo "[5/6] 执行数据库迁移..."
 cd "$PROJECT_DIR/backend"
