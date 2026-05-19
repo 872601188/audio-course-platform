@@ -21,55 +21,63 @@ openclaw_bp = Blueprint('openclaw', __name__)
 
 
 def openclaw_auth_required(f):
-    """OpenClaw Token 认证装饰器
-    仅通过 X-OpenClaw-Token 即可确定用户身份。
-    同时检查 Token 是否过期，并将权限注入 g.current_permissions。
+    """OpenClaw 认证装饰器
+    优先通过 X-OpenClaw-Token 认证（MCP/CLI 调用），
+    未提供时回退到 JWT 认证（前端网页调用）。
     """
     @wraps(f)
     def decorated(*args, **kwargs):
         token = request.headers.get('X-OpenClaw-Token')
 
-        if not token:
-            return jsonify({'error': '缺少认证信息，需要在 Header 中提供 X-OpenClaw-Token'}), 401
+        if token:
+            # ===== OpenClaw Token 认证 =====
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+            token_record = OpenClawToken.query.filter_by(
+                token_hash=token_hash,
+                is_active=True
+            ).first()
 
-        # 计算 Token 的 SHA256 hash
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
+            if not token_record:
+                return jsonify({'error': 'Token 无效或已撤销'}), 401
 
-        # 通过 Token hash 查找记录（自动确定所属用户）
-        token_record = OpenClawToken.query.filter_by(
-            token_hash=token_hash,
-            is_active=True
-        ).first()
+            if token_record.is_expired():
+                return jsonify({'error': 'Token 已过期，请重新生成'}), 401
 
-        if not token_record:
-            return jsonify({'error': 'Token 无效或已撤销'}), 401
+            client_user_id = request.headers.get('X-User-ID')
+            if client_user_id is not None:
+                try:
+                    if int(client_user_id) != token_record.user_id:
+                        return jsonify({'error': 'Token 与提供的 User-ID 不匹配'}), 401
+                except ValueError:
+                    return jsonify({'error': 'X-User-ID 必须是整数'}), 401
 
-        # 检查是否过期
-        if token_record.is_expired():
-            return jsonify({'error': 'Token 已过期，请重新生成'}), 401
+            token_record.last_used_at = datetime.utcnow()
+            db.session.commit()
 
-        # 可选：如果客户端也传了 X-User-ID，做一致性校验
-        client_user_id = request.headers.get('X-User-ID')
-        if client_user_id is not None:
-            try:
-                if int(client_user_id) != token_record.user_id:
-                    return jsonify({'error': 'Token 与提供的 User-ID 不匹配'}), 401
-            except ValueError:
-                return jsonify({'error': 'X-User-ID 必须是整数'}), 401
+            user = User.query.get(token_record.user_id)
+            if not user:
+                return jsonify({'error': '用户不存在'}), 401
 
-        # 更新最后使用时间
-        token_record.last_used_at = datetime.utcnow()
-        db.session.commit()
+            g.current_user = user
+            g.current_token = token_record
+            g.current_permissions = json.loads(token_record.permissions) if token_record.permissions else []
+            return f(*args, **kwargs)
 
-        # 获取用户并注入 g
-        user = User.query.get(token_record.user_id)
-        if not user:
-            return jsonify({'error': '用户不存在'}), 401
+        # ===== 回退到 JWT 认证（前端网页使用）=====
+        try:
+            from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+            verify_jwt_in_request()
+            user_id = get_jwt_identity()
+            user = User.query.get(int(user_id))
+            if user:
+                g.current_user = user
+                g.current_token = None
+                g.current_permissions = DEFAULT_OPENCLAW_PERMISSIONS.copy()
+                return f(*args, **kwargs)
+        except Exception:
+            pass
 
-        g.current_user = user
-        g.current_token = token_record
-        g.current_permissions = json.loads(token_record.permissions) if token_record.permissions else []
-        return f(*args, **kwargs)
+        return jsonify({'error': '缺少认证信息，需要在 Header 中提供 X-OpenClaw-Token'}), 401
     return decorated
 
 
@@ -125,13 +133,16 @@ def create_token():
     else:
         permissions = DEFAULT_OPENCLAW_PERMISSIONS.copy()
 
-    # 生成随机 Token（用户只会在创建时看到一次明文）
-    raw_token = secrets.token_urlsafe(32)
+    # 生成 sk- 开头的 18 位 Token（例：sk-aB3xK9mP2vL7nQ4）
+    import string
+    token_suffix = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(15))
+    raw_token = 'sk-' + token_suffix
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
 
     token_record = OpenClawToken(
         user_id=user.id,
         token_hash=token_hash,
+        token_key=raw_token,
         name=name,
         expires_at=expires_at,
         permissions=json.dumps(permissions)
@@ -140,7 +151,7 @@ def create_token():
     db.session.commit()
 
     return jsonify({
-        'message': 'Token 创建成功（请立即复制，之后无法再次查看）',
+        'message': 'Token 创建成功',
         'token': raw_token,
         'token_info': token_record.to_dict()
     }), 201

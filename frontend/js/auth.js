@@ -13,6 +13,8 @@ function initAuth() {
     return { token, user };
 }
 
+let _navDropdownListenerAdded = false;
+
 function updateNavUser(user) {
     const navUser = document.getElementById('nav-user');
     if (!navUser) return;
@@ -20,15 +22,15 @@ function updateNavUser(user) {
     if (user) {
         const isAdmin = user.role === 'admin';
         navUser.innerHTML = `
-            <div class="relative group">
-                <button class="flex items-center gap-1 text-sm text-gray-700 hover:text-blue-600 py-2">
+            <div class="relative" id="nav-dropdown">
+                <button id="nav-dropdown-btn" class="flex items-center gap-1 text-sm text-gray-700 hover:text-blue-600 py-2 cursor-pointer">
                     <span class="font-medium">${user.username}</span>
                     ${isAdmin ? '<span class="text-xs text-gray-400">(管理员)</span>' : ''}
                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
                 </button>
-                <div class="absolute right-0 mt-0 w-40 bg-white rounded-lg shadow-lg border border-gray-100 hidden group-hover:block z-50">
+                <div id="nav-dropdown-menu" class="absolute right-0 mt-0 w-40 bg-white rounded-lg shadow-lg border border-gray-100 hidden z-50">
                     <a href="/settings.html" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 rounded-t-lg">
                         ⚙️ 个人设置
                     </a>
@@ -41,10 +43,40 @@ function updateNavUser(user) {
                 </div>
             </div>
         `;
+
+        // 绑定按钮点击事件
+        setTimeout(() => {
+            const btn = document.getElementById('nav-dropdown-btn');
+            if (btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleNavDropdown();
+                });
+            }
+        }, 0);
+
+        // 只添加一次全局点击关闭监听器
+        if (!_navDropdownListenerAdded) {
+            _navDropdownListenerAdded = true;
+            document.addEventListener('click', function(e) {
+                const menu = document.getElementById('nav-dropdown-menu');
+                const btn = document.getElementById('nav-dropdown-btn');
+                if (!menu || menu.classList.contains('hidden')) return;
+                if (btn && btn.contains(e.target)) return;
+                menu.classList.add('hidden');
+            });
+        }
     } else {
         navUser.innerHTML = `
             <a href="/login.html" class="text-sm text-blue-600 hover:text-blue-800">登录</a>
         `;
+    }
+}
+
+function toggleNavDropdown() {
+    const menu = document.getElementById('nav-dropdown-menu');
+    if (menu) {
+        menu.classList.toggle('hidden');
     }
 }
 
@@ -63,7 +95,7 @@ function requireAdmin() {
     if (!requireAuth()) return false;
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     if (!user || user.role !== 'admin') {
-        alert('权限不足，需要管理员权限');
+        showModal('权限不足，需要管理员权限');
         window.location.href = '/';
         return false;
     }

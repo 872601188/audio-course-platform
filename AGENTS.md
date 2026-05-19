@@ -1,4 +1,4 @@
-# AGENTS.md — 音频学习平台
+# AGENTS.md — 习听云FM
 
 > 本文件供 AI Coding Agent 阅读。项目主要文档和代码注释使用中文，因此本文件以中文撰写。
 
@@ -6,7 +6,7 @@
 
 ## 项目概述
 
-**音频学习平台 (Audio Course Platform)** 是一个基于 Flask + SQLite + TailwindCSS 的音频课程学习系统。
+**习听云FM (Audio Course Platform)** 是一个基于 Flask + SQLite + TailwindCSS 的音频课程学习系统。
 
 核心功能：
 - 批量上传音频（MP3/WAV/OGG/M4A/FLAC/AAC）
@@ -141,6 +141,9 @@ python backend/app.py        # 默认运行在 http://localhost:5000
 python backend/init_db.py    # 创建 admin/admin123、student/student123、3 门示例课程
 ```
 
+> **⚠️ 后台启动超时注意事项**
+> Flask 是长期运行进程，若使用后台任务（如 Shell 的 `run_in_background=true`）启动服务，**必须设置足够长的超时时间**（建议 `timeout >= 3600`），否则默认 30 秒或 60 秒超时会导致进程被强制 kill，服务将不可访问。
+
 ### Docker 部署（生产推荐）
 
 ```bash
@@ -224,6 +227,22 @@ MCP Server 通过 `stdio` 与 OpenClaw Host 通信，所有数据均通过 HTTP 
    - `beforeunload` 时通过 `navigator.sendBeacon` 发送最终进度
    - 记录 `play`、`pause`、`complete`、`seek` 等行为到 `StudyLog`
 
+6. **禁止原生弹窗，统一使用模态窗口**  
+   所有页面禁止使用浏览器原生 `alert()`、`confirm()`、`prompt()`。`js/api.js` 已提供两个全局函数：
+   - `showModal(message, title)` — 替代 `alert()`，带蓝色确定按钮和淡入动画
+   - `showConfirm(message, onConfirm, title)` — 替代 `confirm()`，左侧取消 + 右侧红色确定按钮，通过回调函数处理确认事件
+   使用示例：
+   ```javascript
+   // ❌ 错误
+   alert('保存成功');
+   if (!confirm('确定删除吗？')) return;
+   doDelete();
+
+   // ✅ 正确
+   showModal('保存成功');
+   showConfirm('确定删除吗？', () => doDelete());
+   ```
+
 ---
 
 ## 测试说明
@@ -252,7 +271,7 @@ MCP Server 通过 `stdio` 与 OpenClaw Host 通信，所有数据均通过 HTTP 
    `backend/app.py` 显式设置 `check_same_thread=False` 以兼容 Flask 多线程请求模型。这在高并发写入场景下存在数据库损坏风险；如需扩展，应迁移至 PostgreSQL/MySQL。
 
 3. **OpenClaw Token 存储**  
-   Token 以 SHA-256 哈希存储，生成时仅在前端展示一次明文，之后不可恢复。此设计合理，但需提醒用户妥善保存。
+   Token 以 SHA-256 哈希存储，同时保存明文 `token_key`（`sk-` 前缀，18 位），用户可在 Token 管理列表中随时查看和复制。生成时格式为 `sk-` + 15 位随机字母数字。
 
 4. **文件上传限制**  
    最大上传 500MB，由 Flask `MAX_CONTENT_LENGTH` 控制。大文件上传可能因网络超时而失败，目前无分片上传机制。
@@ -306,7 +325,7 @@ MCP Server 通过 `stdio` 与 OpenClaw Host 通信，所有数据均通过 HTTP 
 
 ## 变更日志规范 (Changelog)
 
-项目根目录下的 `CHANGELOG.md` 用于记录每次迭代的变更内容，描述不超过30 字 
+项目根目录下的 `CHANGELOG.md` 用于记录每次迭代的变更内容，去掉了所有接口路径（如 /api/my/progress）、代码术语（如 JWT）和 URL 相关内容。现在每条变更描述都用自然语言表述，不超过 30 字
 
 ### 记录要求
 
@@ -325,9 +344,7 @@ MCP Server 通过 `stdio` 与 OpenClaw Host 通信，所有数据均通过 HTTP 
 
 ### ✨ 新功能
 - 新增 OpenClaw MCP Server，支持 9 个 Tools 调用
-- 新增 `OpenClawToken` / `StudyPlan` 模型
-- 新增 `backend/routes/openclaw.py`，提供 12+ 个专用 API 接口
-- 新增 `frontend/settings.html` 个人设置页面
+ 
 
 ### 🔧 调整与优化
 - OpenClaw 认证从双 Header（User-ID + Token）简化为单 Token 认证

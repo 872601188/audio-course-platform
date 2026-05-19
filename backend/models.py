@@ -204,6 +204,7 @@ class OpenClawToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     token_hash = db.Column(db.String(64), unique=True, nullable=False)
+    token_key = db.Column(db.String(100))  # 可查看的明文 token，sk- 开头
     name = db.Column(db.String(100), default='OpenClaw')
     is_active = db.Column(db.Boolean, default=True)
     # 有效期：默认 3 个月（90 天）
@@ -217,6 +218,7 @@ class OpenClawToken(db.Model):
         return {
             'id': self.id,
             'user_id': self.user_id,
+            'token_key': self.token_key,
             'name': self.name,
             'is_active': self.is_active,
             'expires_at': self.expires_at.isoformat() if self.expires_at else None,

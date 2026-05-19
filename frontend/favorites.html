@@ -3,17 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的收藏 - 音频学习平台</title>
+    <title>我的收藏 - 习听云FM</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen">
     <nav class="bg-white shadow-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <a href="/" class="text-xl font-bold text-blue-600 hover:text-blue-700">🎧 音频学习平台</a>
-                <div class="flex items-center space-x-4">
-                    <a href="/favorites.html" class="text-blue-600 font-medium text-sm">我的收藏</a>
-                    <a href="/analyze.html" class="text-gray-600 hover:text-blue-600 text-sm">学习分析</a>
+                <a href="/" class="text-base sm:text-lg md:text-xl font-bold text-blue-600 hover:text-blue-700 shrink-0 whitespace-nowrap">🎧 习听云FM<span class="hidden sm:inline text-xs font-normal text-gray-400 ml-1.5 shrink-0">让每日聆听成为习惯</span></a>
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <div class="flex items-center space-x-2 sm:space-x-3 overflow-x-auto no-scrollbar">
+                        <a href="/progress.html" class="text-gray-600 hover:text-blue-600 text-xs sm:text-sm whitespace-nowrap">我的学习</a>
+                        <a href="/favorites.html" class="text-blue-600 font-medium text-xs sm:text-sm whitespace-nowrap">我的收藏</a>
+                        <a href="/analyze.html" class="text-gray-600 hover:text-blue-600 text-xs sm:text-sm whitespace-nowrap">学习分析</a>
+                    </div>
                     <div id="nav-user"></div>
                 </div>
             </div>
@@ -22,13 +25,13 @@
 
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="flex items-center justify-between mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">❤️ 我的收藏</h1>
-            <button onclick="clearAllFavorites()" class="text-sm text-red-500 hover:text-red-700 px-3 py-1 border border-red-200 rounded-lg hover:bg-red-50 transition">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">❤️ 我的收藏</h1>
+            <button onclick="clearAllFavorites()" class="text-sm text-red-500 hover:text-red-700 px-3 py-1.5 border border-red-200 rounded-lg hover:bg-red-50 transition shrink-0">
                 清空收藏
             </button>
         </div>
 
-        <div id="favorites-list" class="space-y-3">
+        <div id="favorites-list" class="space-y-6">
             <div class="text-gray-400 text-center py-20">加载中...</div>
         </div>
 
@@ -70,32 +73,64 @@
                 emptyEl.classList.add('hidden');
                 listEl.classList.remove('hidden');
 
-                listEl.innerHTML = favoritesData.map((fav, i) => `
-                    <div class="bg-white rounded-xl shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition">
-                        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-lg font-bold shrink-0">
-                            ${i + 1}
+                // 按课程分组
+                const groups = {};
+                favoritesData.forEach(fav => {
+                    const key = fav.course_id || 'unknown';
+                    if (!groups[key]) {
+                        groups[key] = {
+                            course_id: fav.course_id,
+                            course_title: fav.course_title,
+                            items: []
+                        };
+                    }
+                    groups[key].items.push(fav);
+                });
+
+                listEl.innerHTML = Object.values(groups).map(group => `
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                        <div class="px-4 sm:px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                            <h3 class="font-bold text-gray-800 truncate">${escapeHtml(group.course_title)}</h3>
+                            <span class="text-xs text-gray-500 shrink-0 ml-2">${group.items.length} 个音频</span>
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="text-sm font-medium text-gray-800 truncate">${fav.audio_title}</div>
-                            <div class="text-xs text-gray-400 mt-0.5">${fav.course_title} · ${formatDuration(fav.duration)}</div>
-                        </div>
-                        <div class="flex items-center gap-2 shrink-0">
-                            <a href="/player.html?course=${fav.course_id}&audio=${fav.audio_id}" 
-                               class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">
-                                ▶ 播放
-                            </a>
-                            <button onclick="removeFavorite(${fav.audio_id})" 
-                                    class="p-2 text-gray-400 hover:text-red-500 transition" title="取消收藏">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                                </svg>
-                            </button>
+                        <div class="divide-y divide-gray-100">
+                            ${group.items.map(fav => `
+                                <div class="px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-gray-50 transition">
+                                    <div class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                                        <svg class="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-sm font-medium text-gray-800 truncate">${escapeHtml(fav.audio_title)}</div>
+                                        <div class="text-xs text-gray-400 mt-0.5">${formatDuration(fav.duration)}</div>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <a href="/player.html?course=${fav.course_id}&audio=${fav.audio_id}"
+                                           class="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700 transition whitespace-nowrap">
+                                            ▶ 播放
+                                        </a>
+                                        <button onclick="removeFavorite(${fav.audio_id})"
+                                                class="p-1.5 text-gray-300 hover:text-red-500 transition" title="取消收藏">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
                 `).join('');
             } catch (e) {
                 listEl.innerHTML = `<div class="text-red-500 text-center py-10">加载失败：${e.message}</div>`;
             }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         async function removeFavorite(audioId) {
@@ -109,14 +144,15 @@
         }
 
         async function clearAllFavorites() {
-            if (!confirm('确定要清空所有收藏吗？')) return;
-            try {
-                await FavoriteAPI.clear();
-                loadFavorites();
-                showToast('收藏已清空');
-            } catch (e) {
-                showToast('操作失败');
-            }
+            showConfirm('确定要清空所有收藏吗？', async () => {
+                try {
+                    await FavoriteAPI.clear();
+                    loadFavorites();
+                    showToast('收藏已清空');
+                } catch (e) {
+                    showToast('操作失败');
+                }
+            });
         }
 
         function formatDuration(seconds) {

@@ -3,16 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理后台 - 音频学习平台</title>
+    <title>管理后台 - 习听云FM</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <nav class="bg-white shadow-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <a href="/" class="text-xl font-bold text-blue-600">🎧 音频学习平台</a>
-                <div class="flex items-center space-x-4">
-                    <span class="text-gray-600 text-sm">管理后台</span>
+                <a href="/" class="text-base sm:text-lg md:text-xl font-bold text-blue-600 shrink-0 whitespace-nowrap">🎧 习听云FM<span class="hidden sm:inline text-xs font-normal text-gray-400 ml-1.5 shrink-0">让每日聆听成为习惯</span></a>
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <div class="flex items-center space-x-2 sm:space-x-3 overflow-x-auto no-scrollbar">
+                        <a href="/progress.html" class="text-gray-600 hover:text-blue-600 text-xs sm:text-sm whitespace-nowrap">我的学习</a>
+                        <span class="text-gray-600 text-xs sm:text-sm whitespace-nowrap">管理后台</span>
+                    </div>
                     <div id="nav-user"></div>
                 </div>
             </div>
@@ -327,82 +334,82 @@
         }
 
         // 从管理弹窗删除单个音频
-        async function deleteAudioFileFromManager(audioId, courseId) {
-            if (!confirm('确定要删除这个音频文件吗？此操作不可恢复。')) return;
-
-            try {
-                const resp = await fetch(`${API_BASE}/api/upload/audio/${audioId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-                });
-                const data = await resp.json();
-                
-                if (resp.ok) {
-                    if (audioSelection[courseId]) audioSelection[courseId].delete(audioId);
-                    // 刷新弹窗列表
-                    const courseData = await CourseAPI.getDetail(courseId);
-                    const audios = courseData.course?.audio_files || [];
-                    document.getElementById('audio-manager-count').textContent = `共 ${audios.length} 个音频`;
-                    if (audios.length === 0) {
-                        document.getElementById('audio-manager-list').innerHTML = '<div class="text-center py-8 text-gray-400">暂无音频文件</div>';
+        function deleteAudioFileFromManager(audioId, courseId) {
+            showConfirm('确定要删除这个音频文件吗？此操作不可恢复。', async () => {
+                try {
+                    const resp = await fetch(`${API_BASE}/api/upload/audio/${audioId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                    });
+                    const data = await resp.json();
+                    
+                    if (resp.ok) {
+                        if (audioSelection[courseId]) audioSelection[courseId].delete(audioId);
+                        // 刷新弹窗列表
+                        const courseData = await CourseAPI.getDetail(courseId);
+                        const audios = courseData.course?.audio_files || [];
+                        document.getElementById('audio-manager-count').textContent = `共 ${audios.length} 个音频`;
+                        if (audios.length === 0) {
+                            document.getElementById('audio-manager-list').innerHTML = '<div class="text-center py-8 text-gray-400">暂无音频文件</div>';
+                        } else {
+                            renderAudioManagerList(courseId, audios);
+                        }
+                        // 刷新课程卡片
+                        loadAdminCourses();
                     } else {
-                        renderAudioManagerList(courseId, audios);
+                        showModal(data.error || '删除失败');
                     }
-                    // 刷新课程卡片
-                    loadAdminCourses();
-                } else {
-                    alert(data.error || '删除失败');
+                } catch (err) {
+                    showModal('删除请求失败: ' + err.message);
                 }
-            } catch (err) {
-                alert('删除请求失败: ' + err.message);
-            }
+            });
         }
 
         // 批量删除音频（从弹窗）
-        async function batchDeleteFromManager() {
+        function batchDeleteFromManager() {
             const courseId = currentAudioManagerCourseId;
             if (!courseId) return;
             const selected = audioSelection[courseId];
             if (!selected || selected.size === 0) {
-                alert('请先选择要删除的音频文件');
+                showModal('请先选择要删除的音频文件');
                 return;
             }
             const ids = Array.from(selected);
-            if (!confirm(`确定要删除选中的 ${ids.length} 个音频文件吗？此操作不可恢复。`)) return;
-
-            try {
-                const resp = await fetch(`${API_BASE}/api/upload/audio/batch`, {
-                    method: 'DELETE',
-                    headers: { 
-                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ audio_ids: ids })
-                });
-                const data = await resp.json();
-                
-                if (resp.ok) {
-                    audioSelection[courseId] = new Set();
-                    document.getElementById('audio-manager-select-all').checked = false;
-                    // 刷新弹窗列表
-                    const courseData = await CourseAPI.getDetail(courseId);
-                    const audios = courseData.course?.audio_files || [];
-                    document.getElementById('audio-manager-count').textContent = `共 ${audios.length} 个音频`;
-                    if (audios.length === 0) {
-                        document.getElementById('audio-manager-list').innerHTML = '<div class="text-center py-8 text-gray-400">暂无音频文件</div>';
+            showConfirm(`确定要删除选中的 ${ids.length} 个音频文件吗？此操作不可恢复。`, async () => {
+                try {
+                    const resp = await fetch(`${API_BASE}/api/upload/audio/batch`, {
+                        method: 'DELETE',
+                        headers: { 
+                            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ audio_ids: ids })
+                    });
+                    const data = await resp.json();
+                    
+                    if (resp.ok) {
+                        audioSelection[courseId] = new Set();
+                        document.getElementById('audio-manager-select-all').checked = false;
+                        // 刷新弹窗列表
+                        const courseData = await CourseAPI.getDetail(courseId);
+                        const audios = courseData.course?.audio_files || [];
+                        document.getElementById('audio-manager-count').textContent = `共 ${audios.length} 个音频`;
+                        if (audios.length === 0) {
+                            document.getElementById('audio-manager-list').innerHTML = '<div class="text-center py-8 text-gray-400">暂无音频文件</div>';
+                        } else {
+                            renderAudioManagerList(courseId, audios);
+                        }
+                        loadAdminCourses();
+                        if (data.errors && data.errors.length > 0) {
+                            showModal(`删除完成：${data.deleted?.length || 0} 个成功，${data.errors.length} 个失败\n${data.errors.join('\n')}`);
+                        }
                     } else {
-                        renderAudioManagerList(courseId, audios);
+                        showModal(data.error || '批量删除失败');
                     }
-                    loadAdminCourses();
-                    if (data.errors && data.errors.length > 0) {
-                        alert(`删除完成：${data.deleted?.length || 0} 个成功，${data.errors.length} 个失败\n${data.errors.join('\n')}`);
-                    }
-                } else {
-                    alert(data.error || '批量删除失败');
+                } catch (err) {
+                    showModal('删除请求失败: ' + err.message);
                 }
-            } catch (err) {
-                alert('删除请求失败: ' + err.message);
-            }
+            });
         }
 
         // 兼容旧函数（如果其他地方调用）
@@ -456,19 +463,20 @@
                 const data = await CourseAPI.getDetail(id);
                 showCourseModal(data.course);
             } catch (err) {
-                alert(err.message);
+                showModal(err.message);
             }
         }
 
-        async function deleteCourse(id) {
-            if (!confirm('确定要删除此课程吗？关联的音频文件也会被删除。')) return;
-            try {
-                await CourseAPI.delete(id);
-                alert('删除成功');
-                loadAdminCourses();
-            } catch (err) {
-                alert(err.message);
-            }
+        function deleteCourse(id) {
+            showConfirm('确定要删除此课程吗？关联的音频文件也会被删除。', async () => {
+                try {
+                    await CourseAPI.delete(id);
+                    showModal('删除成功');
+                    loadAdminCourses();
+                } catch (err) {
+                    showModal(err.message);
+                }
+            });
         }
 
         // 封面预览
@@ -514,7 +522,7 @@
                 closeCourseModal();
                 loadAdminCourses();
             } catch (err) {
-                alert(err.message);
+                showModal(err.message);
             }
         });
 
@@ -638,11 +646,11 @@
         async function uploadFiles() {
             const courseId = document.getElementById('upload-course-select').value;
             if (!courseId) {
-                alert('请先选择课程');
+                showModal('请先选择课程');
                 return;
             }
             if (selectedFiles.length === 0) {
-                alert('请选择要上传的文件');
+                showModal('请选择要上传的文件');
                 return;
             }
 

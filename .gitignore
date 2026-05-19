@@ -38,3 +38,4 @@ backend/uploads/
 *.log
 nohup.out
 *.bak
+backup/

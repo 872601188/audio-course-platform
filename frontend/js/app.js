@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initAuth();
     loadCourses();
     setupSearch();
+    loadContinueLearning();
 });
 
 let currentCourses = [];
@@ -86,6 +87,47 @@ function renderCourses(courses) {
             </div>
         `;
     }).join('');
+}
+
+async function loadContinueLearning() {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    const container = document.getElementById('continue-learning');
+    if (!container) return;
+
+    try {
+        const data = await PlayerAPI.getLastProgress();
+        if (!data.has_progress) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-6 text-white mb-8 cursor-pointer hover:shadow-xl transition"
+                 onclick="window.location.href='/player.html?course=${data.course_id}&audio=${data.audio_id}&t=${data.current_time}'">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-blue-100 text-sm mb-1">继续学习</div>
+                        <h2 class="text-xl font-bold mb-1">${escapeHtml(data.course_title)}</h2>
+                        <p class="text-blue-100 text-sm">${escapeHtml(data.audio_title)} · ${formatDuration(data.current_time)}</p>
+                    </div>
+                    <div class="flex items-center justify-center w-14 h-14 bg-white/20 rounded-full">
+                        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.style.display = 'block';
+    } catch (e) {
+        container.style.display = 'none';
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function setupSearch() {

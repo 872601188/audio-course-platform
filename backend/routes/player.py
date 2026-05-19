@@ -273,6 +273,42 @@ def get_all_progress():
     return jsonify({'courses_progress': result}), 200
 
 
+@player_bp.route('/progress/last', methods=['GET'])
+@jwt_required()
+def get_last_progress():
+    """获取用户最近播放的音频和课程 - 用于登录后自动跳转"""
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+    if not user:
+        return jsonify({'error': '用户不存在'}), 404
+
+    # 按最后播放时间倒序取最新一条
+    last_progress = PlaybackProgress.query.filter_by(user_id=user.id) \
+        .order_by(PlaybackProgress.last_played_at.desc()).first()
+
+    if not last_progress:
+        return jsonify({'has_progress': False}), 200
+
+    audio = AudioFile.query.get(last_progress.audio_id)
+    if not audio:
+        return jsonify({'has_progress': False}), 200
+
+    course = Course.query.get(audio.course_id)
+    if not course:
+        return jsonify({'has_progress': False}), 200
+
+    return jsonify({
+        'has_progress': True,
+        'course_id': course.id,
+        'course_title': course.title,
+        'audio_id': audio.id,
+        'audio_title': audio.title,
+        'current_time': last_progress.current_time,
+        'completed': last_progress.completed,
+        'last_played_at': last_progress.last_played_at.isoformat() if last_progress.last_played_at else None
+    }), 200
+
+
 @player_bp.route('/audio/<int:audio_id>/stream')
 def stream_audio(audio_id):
     """音频流服务 - 支持范围请求（断点续传播放）"""

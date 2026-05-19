@@ -243,6 +243,10 @@ const PlayerAPI = {
 
     async getAllProgress() {
         return apiFetch('/api/progress/all');
+    },
+
+    async getLastProgress() {
+        return apiFetch('/api/progress/last');
     }
 };
 
@@ -280,3 +284,86 @@ const AnalyzeAPI = {
         return apiFetch('/api/learning-stats');
     }
 };
+
+// ========== 我的学习 API ==========
+
+const MyAPI = {
+    async getProgress() {
+        return apiFetch('/api/my/progress');
+    },
+
+    async getPlans() {
+        return apiFetch('/api/my/plans');
+    },
+
+    async getPlanDetail(planId) {
+        return apiFetch(`/api/my/plans/${planId}`);
+    }
+};
+
+// ========== 通用模态窗口（替代系统 alert / confirm）==========
+
+function showModal(message, title) {
+    title = title || '提示';
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4';
+    overlay.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-95 opacity-0 transition-all duration-200">
+            <h3 class="text-lg font-bold text-gray-800 mb-3">${escapeHtml(title)}</h3>
+            <p class="text-sm text-gray-600 mb-6 whitespace-pre-wrap">${escapeHtml(message)}</p>
+            <button id="modal-ok-btn" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">确定</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    const content = overlay.querySelector('div');
+    requestAnimationFrame(() => {
+        content.classList.remove('scale-95', 'opacity-0');
+        content.classList.add('scale-100', 'opacity-100');
+    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    overlay.querySelector('#modal-ok-btn').addEventListener('click', closeModal);
+    function closeModal() {
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => overlay.remove(), 200);
+    }
+}
+
+function showConfirm(message, onConfirm, title) {
+    title = title || '确认';
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4';
+    overlay.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-95 opacity-0 transition-all duration-200">
+            <h3 class="text-lg font-bold text-gray-800 mb-3">${escapeHtml(title)}</h3>
+            <p class="text-sm text-gray-600 mb-6 whitespace-pre-wrap">${escapeHtml(message)}</p>
+            <div class="flex justify-center gap-3">
+                <button id="modal-cancel-btn" class="px-5 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium">取消</button>
+                <button id="modal-ok-btn" class="px-5 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium">确定</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    const content = overlay.querySelector('div');
+    requestAnimationFrame(() => {
+        content.classList.remove('scale-95', 'opacity-0');
+        content.classList.add('scale-100', 'opacity-100');
+    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    overlay.querySelector('#modal-cancel-btn').addEventListener('click', closeModal);
+    overlay.querySelector('#modal-ok-btn').addEventListener('click', () => {
+        closeModal();
+        if (typeof onConfirm === 'function') onConfirm();
+    });
+    function closeModal() {
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => overlay.remove(), 200);
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}

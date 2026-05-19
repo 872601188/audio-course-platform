@@ -3,100 +3,307 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登录 / 注册 - 音频学习平台</title>
+    <title>登录 / 注册 - 习听云FM</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center">
-    <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md mx-4">
-        <h1 class="text-2xl font-bold text-center text-gray-800 mb-2">🎧 音频学习平台</h1>
-        <p class="text-center text-gray-500 mb-8">登录开始学习之旅</p>
+<body class="bg-blue-50 min-h-screen flex items-center justify-center relative overflow-hidden">
 
-        <!-- 登录表单 -->
-        <form id="login-form" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">用户名或邮箱</label>
-                <input type="text" id="login-username" required
-                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
-                <input type="password" id="login-password" required
-                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            </div>
-            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition">
-                登录
-            </button>
-            <p class="text-center text-sm text-gray-500">
-                还没有账号？<button type="button" onclick="showRegister()" class="text-blue-600 hover:underline">立即注册</button>
-            </p>
-        </form>
+    <!-- 背景装饰 -->
+    <div class="absolute top-10 left-10 w-32 h-32 bg-blue-200/40 rounded-full blur-2xl"></div>
+    <div class="absolute bottom-10 right-10 w-40 h-40 bg-blue-300/30 rounded-full blur-3xl"></div>
+    <div class="absolute top-1/3 left-1/4 w-24 h-24 bg-indigo-200/30 rounded-full blur-xl"></div>
 
-        <!-- 注册表单 -->
-        <form id="register-form" class="space-y-4 hidden">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
-                <input type="text" id="reg-username" required
-                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
-                <input type="email" id="reg-email" required
-                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
-                <input type="password" id="reg-password" required minlength="6"
-                       class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">角色</label>
-                <select id="reg-role" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-                    <option value="student">学员</option>
-                    <option value="admin">管理员</option>
-                </select>
-            </div>
-            <button type="submit" class="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition">
-                注册
-            </button>
-            <p class="text-center text-sm text-gray-500">
-                已有账号？<button type="button" onclick="showLogin()" class="text-blue-600 hover:underline">去登录</button>
-            </p>
-        </form>
+    <!-- 主容器 -->
+    <div class="flex w-full max-w-4xl mx-4 shadow-2xl rounded-2xl overflow-hidden min-h-[560px]">
 
-        <div id="message" class="mt-4 text-center text-sm hidden"></div>
+        <!-- 左侧品牌区 -->
+        <div class="hidden md:flex w-1/2 bg-gradient-to-br from-blue-500 to-blue-700 items-center justify-center relative overflow-hidden">
+            <!-- 装饰圆 -->
+            <div class="absolute top-10 left-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+            <div class="absolute bottom-20 right-10 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-white/5 rounded-full blur-xl"></div>
+
+            <div class="relative z-10 text-center text-white px-10">
+                <div class="text-5xl mb-6">🎧</div>
+                <h1 class="text-3xl font-bold mb-3 tracking-wide">习听云FM</h1>
+                <p class="text-base text-white/70 mb-8">让每日聆听成为习惯</p>
+                <div class="text-sm text-white/50 leading-relaxed max-w-xs mx-auto">
+                    海量音频课程，随时随地学习。<br>
+                    断点续播、学习追踪、AI 计划。
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧表单区 -->
+        <div class="w-full md:w-1/2 bg-white flex items-center justify-center px-8 py-10">
+            <div class="w-full max-w-sm">
+                <!-- 移动端品牌 -->
+                <div class="md:hidden text-center mb-6">
+                    <div class="text-3xl mb-2">🎧</div>
+                    <h1 class="text-xl font-bold text-gray-800">习听云FM</h1>
+                    <p class="text-xs text-gray-400 mt-1">让每日聆听成为习惯</p>
+                </div>
+
+                <!-- 登录/注册切换 -->
+                <div class="flex mb-8 border-b border-gray-100">
+                    <button id="tab-login" onclick="switchTab('login')" class="flex-1 pb-3 text-center text-base font-medium text-blue-600 border-b-2 border-blue-600 transition">
+                        登录
+                    </button>
+                    <button id="tab-register" onclick="switchTab('register')" class="flex-1 pb-3 text-center text-base font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition">
+                        注册
+                    </button>
+                </div>
+
+                <!-- 登录表单 -->
+                <form id="login-form" class="space-y-5">
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-1">用户名或邮箱</label>
+                        <div class="flex items-center border-b border-gray-200 focus-within:border-blue-500 transition pb-1">
+                            <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            <input type="text" id="login-username" required placeholder="请输入"
+                                   class="w-full py-1 outline-none text-gray-800 placeholder-gray-300 text-sm bg-transparent">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-1">密码</label>
+                        <div class="flex items-center border-b border-gray-200 focus-within:border-blue-500 transition pb-1">
+                            <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            </svg>
+                            <input type="password" id="login-password" required placeholder="请输入"
+                                   class="w-full py-1 outline-none text-gray-800 placeholder-gray-300 text-sm bg-transparent">
+                        </div>
+                    </div>
+
+                    <!-- 拖动验证码 -->
+                    <div class="pt-1">
+                        <label class="block text-sm text-gray-500 mb-1">安全验证</label>
+                        <div id="captcha-track" class="relative w-full h-10 bg-gray-100 rounded-lg select-none overflow-hidden">
+                            <!-- 背景文字 -->
+                            <div id="captcha-text" class="absolute inset-0 flex items-center justify-center text-xs text-gray-400 pointer-events-none">
+                                请按住滑块，拖动到最右边
+                            </div>
+                            <!-- 成功遮罩 -->
+                            <div id="captcha-success-bg" class="absolute inset-0 bg-green-500 w-0 transition-all duration-300 pointer-events-none"></div>
+                            <!-- 滑块 -->
+                            <div id="captcha-slider" class="absolute top-0 left-0 w-10 h-10 bg-white rounded-lg shadow border border-gray-200 flex items-center justify-center cursor-pointer z-10 hover:bg-gray-50">
+                                <svg id="captcha-arrow" class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                                <svg id="captcha-check" class="w-5 h-5 text-green-600 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="login-btn" class="w-full bg-teal-500 text-white py-3 rounded-lg font-medium hover:bg-teal-600 transition shadow-md mt-4 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                        登 录
+                    </button>
+                </form>
+
+                <!-- 注册表单 -->
+                <form id="register-form" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-1">用户名</label>
+                        <div class="flex items-center border-b border-gray-200 focus-within:border-blue-500 transition pb-1">
+                            <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            <input type="text" id="reg-username" required placeholder="请输入"
+                                   class="w-full py-1 outline-none text-gray-800 placeholder-gray-300 text-sm bg-transparent">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-1">邮箱</label>
+                        <div class="flex items-center border-b border-gray-200 focus-within:border-blue-500 transition pb-1">
+                            <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/>
+                            </svg>
+                            <input type="email" id="reg-email" required placeholder="请输入"
+                                   class="w-full py-1 outline-none text-gray-800 placeholder-gray-300 text-sm bg-transparent">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-1">密码</label>
+                        <div class="flex items-center border-b border-gray-200 focus-within:border-blue-500 transition pb-1">
+                            <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            </svg>
+                            <input type="password" id="reg-password" required minlength="6" placeholder="至少6位"
+                                   class="w-full py-1 outline-none text-gray-800 placeholder-gray-300 text-sm bg-transparent">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-1">角色</label>
+                        <div class="flex items-center border-b border-gray-200 focus-within:border-blue-500 transition pb-1">
+                            <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                            <select id="reg-role" class="w-full py-1 outline-none text-gray-800 text-sm bg-transparent">
+                                <option value="student">学员</option>
+                                <option value="admin">管理员</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-teal-500 text-white py-3 rounded-lg font-medium hover:bg-teal-600 transition shadow-md mt-4">
+                        注 册
+                    </button>
+                </form>
+
+                <!-- 消息提示 -->
+                <div id="message" class="mt-4 text-center text-sm hidden py-2 rounded"></div>
+            </div>
+        </div>
     </div>
 
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
     <script>
-        // 如果已登录，跳转到首页
-        if (localStorage.getItem('access_token')) {
-            window.location.href = '/';
+        // 如果已登录，查询最近播放进度并跳转
+        (async () => {
+            if (localStorage.getItem('access_token')) {
+                try {
+                    const data = await PlayerAPI.getLastProgress();
+                    if (data.has_progress) {
+                        window.location.href = `/player.html?course=${data.course_id}&audio=${data.audio_id}&t=${data.current_time}`;
+                    } else {
+                        window.location.href = '/';
+                    }
+                } catch (e) {
+                    window.location.href = '/';
+                }
+            }
+        })();
+
+        function switchTab(tab) {
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const tabLogin = document.getElementById('tab-login');
+            const tabRegister = document.getElementById('tab-register');
+            const msg = document.getElementById('message');
+
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                tabLogin.className = 'flex-1 pb-3 text-center text-base font-medium text-blue-600 border-b-2 border-blue-600 transition';
+                tabRegister.className = 'flex-1 pb-3 text-center text-base font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition';
+            } else {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                tabLogin.className = 'flex-1 pb-3 text-center text-base font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition';
+                tabRegister.className = 'flex-1 pb-3 text-center text-base font-medium text-blue-600 border-b-2 border-blue-600 transition';
+            }
+            msg.classList.add('hidden');
         }
 
-        function showRegister() {
-            document.getElementById('login-form').classList.add('hidden');
-            document.getElementById('register-form').classList.remove('hidden');
-            document.getElementById('message').classList.add('hidden');
+        // ========== 拖动验证码 ==========
+        let captchaVerified = false;
+        let isDragging = false;
+        let startX = 0;
+        let currentX = 0;
+        const sliderWidth = 40; // 滑块宽度
+
+        const captchaTrack = document.getElementById('captcha-track');
+        const captchaSlider = document.getElementById('captcha-slider');
+        const captchaText = document.getElementById('captcha-text');
+        const captchaSuccessBg = document.getElementById('captcha-success-bg');
+        const captchaArrow = document.getElementById('captcha-arrow');
+        const captchaCheck = document.getElementById('captcha-check');
+        const loginBtn = document.getElementById('login-btn');
+
+        function resetCaptcha() {
+            captchaVerified = false;
+            isDragging = false;
+            currentX = 0;
+            captchaSlider.style.transform = 'translateX(0px)';
+            captchaSlider.style.transition = 'transform 0.3s';
+            captchaSuccessBg.style.width = '0px';
+            captchaText.textContent = '请按住滑块，拖动到最右边';
+            captchaText.className = 'absolute inset-0 flex items-center justify-center text-xs text-gray-400 pointer-events-none';
+            captchaArrow.classList.remove('hidden');
+            captchaCheck.classList.add('hidden');
+            captchaSlider.classList.remove('border-green-300');
+            loginBtn.disabled = true;
         }
 
-        function showLogin() {
-            document.getElementById('register-form').classList.add('hidden');
-            document.getElementById('login-form').classList.remove('hidden');
-            document.getElementById('message').classList.add('hidden');
+        function verifyCaptcha() {
+            const trackWidth = captchaTrack.offsetWidth;
+            const maxX = trackWidth - sliderWidth;
+            if (currentX >= maxX - 2) {
+                // 验证通过
+                captchaVerified = true;
+                currentX = maxX;
+                captchaSlider.style.transform = `translateX(${maxX}px)`;
+                captchaSlider.style.transition = 'transform 0.2s';
+                captchaSuccessBg.style.width = `${maxX + sliderWidth}px`;
+                captchaText.textContent = '验证通过';
+                captchaText.className = 'absolute inset-0 flex items-center justify-center text-xs text-white font-medium pointer-events-none';
+                captchaArrow.classList.add('hidden');
+                captchaCheck.classList.remove('hidden');
+                captchaSlider.classList.add('border-green-300');
+                loginBtn.disabled = false;
+            } else {
+                // 未到位，弹回
+                resetCaptcha();
+            }
         }
+
+        function onDragStart(e) {
+            if (captchaVerified) return;
+            isDragging = true;
+            startX = (e.touches ? e.touches[0].clientX : e.clientX) - currentX;
+            captchaSlider.style.transition = 'none';
+            document.body.style.userSelect = 'none';
+        }
+
+        function onDragMove(e) {
+            if (!isDragging || captchaVerified) return;
+            e.preventDefault();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const trackWidth = captchaTrack.offsetWidth;
+            const maxX = trackWidth - sliderWidth;
+            let dx = clientX - startX;
+            if (dx < 0) dx = 0;
+            if (dx > maxX) dx = maxX;
+            currentX = dx;
+            captchaSlider.style.transform = `translateX(${dx}px)`;
+            captchaSuccessBg.style.width = `${dx}px`;
+        }
+
+        function onDragEnd() {
+            if (!isDragging) return;
+            isDragging = false;
+            document.body.style.userSelect = '';
+            verifyCaptcha();
+        }
+
+        captchaSlider.addEventListener('mousedown', onDragStart);
+        document.addEventListener('mousemove', onDragMove);
+        document.addEventListener('mouseup', onDragEnd);
+        captchaSlider.addEventListener('touchstart', onDragStart, { passive: false });
+        document.addEventListener('touchmove', onDragMove, { passive: false });
+        document.addEventListener('touchend', onDragEnd);
+
+        loginBtn.disabled = true;
 
         function showMessage(text, isError = false) {
             const el = document.getElementById('message');
             el.textContent = text;
-            el.className = `mt-4 text-center text-sm ${isError ? 'text-red-500' : 'text-green-600'}`;
+            el.className = `mt-4 text-center text-sm py-2 rounded ${isError ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`;
             el.classList.remove('hidden');
         }
 
         // 登录
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = e.target.querySelector('button');
+            if (!captchaVerified) {
+                showMessage('请先完成滑块验证', true);
+                return;
+            }
+            const btn = document.getElementById('login-btn');
             btn.disabled = true;
             btn.textContent = '登录中...';
 
@@ -108,15 +315,33 @@
                 localStorage.setItem('access_token', result.access_token);
                 localStorage.setItem('user', JSON.stringify(result.user));
                 showMessage('登录成功！');
-                setTimeout(() => {
-                    const redirect = new URLSearchParams(window.location.search).get('redirect') || '/';
-                    window.location.href = redirect;
+                setTimeout(async () => {
+                    const redirect = new URLSearchParams(window.location.search).get('redirect');
+                    if (redirect) {
+                        window.location.href = redirect;
+                        return;
+                    }
+                    try {
+                        const data = await PlayerAPI.getLastProgress();
+                        if (data.has_progress) {
+                            window.location.href = `/player.html?course=${data.course_id}&audio=${data.audio_id}&t=${data.current_time}`;
+                        } else {
+                            window.location.href = '/';
+                        }
+                    } catch (e) {
+                        window.location.href = '/';
+                    }
                 }, 500);
             } catch (err) {
                 showMessage(err.message, true);
+                resetCaptcha();
             } finally {
-                btn.disabled = false;
-                btn.textContent = '登录';
+                if (!captchaVerified) {
+                    btn.disabled = true;
+                } else {
+                    btn.disabled = false;
+                }
+                btn.textContent = '登 录';
             }
         });
 
@@ -135,12 +360,12 @@
                     document.getElementById('reg-role').value
                 );
                 showMessage('注册成功！请登录');
-                setTimeout(showLogin, 1000);
+                setTimeout(() => switchTab('login'), 1000);
             } catch (err) {
                 showMessage(err.message, true);
             } finally {
                 btn.disabled = false;
-                btn.textContent = '注册';
+                btn.textContent = '注 册';
             }
         });
     </script>

@@ -62,6 +62,15 @@ def migrate():
         else:
             print(f"列已存在: {col_name}")
 
+    # 3. 为 openclaw_tokens 表添加 token_key 列
+    cursor.execute('PRAGMA table_info(openclaw_tokens)')
+    existing_oc_cols = {row[1] for row in cursor.fetchall()}
+    if 'token_key' not in existing_oc_cols:
+        print("为 openclaw_tokens 添加列: token_key")
+        cursor.execute("ALTER TABLE openclaw_tokens ADD COLUMN token_key VARCHAR(100)")
+    else:
+        print("列已存在: token_key")
+
     conn.commit()
     conn.close()
     print("✅ 数据库迁移完成")

@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的学习 - 习听云FM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="text-base sm:text-lg md:text-xl font-bold text-blue-600 shrink-0 whitespace-nowrap">🎧 习听云FM<span class="hidden sm:inline text-xs font-normal text-gray-400 ml-1.5 shrink-0">让每日聆听成为习惯</span></a>
+                </div>
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <div class="flex items-center space-x-2 sm:space-x-3 overflow-x-auto no-scrollbar">
+                        <a href="/progress.html" class="text-blue-600 font-medium text-xs sm:text-sm whitespace-nowrap">我的学习</a>
+                        <a href="/favorites.html" class="text-gray-600 hover:text-blue-600 text-xs sm:text-sm whitespace-nowrap">我的收藏</a>
+                        <a href="/analyze.html" class="text-gray-600 hover:text-blue-600 text-xs sm:text-sm whitespace-nowrap">学习分析</a>
+                    </div>
+                    <div id="nav-user"></div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">📚 我的学习</h1>
+
+        <!-- 统计概览 -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="stats-overview">
+            <div class="bg-white rounded-xl p-5 shadow-sm text-center">
+                <div class="text-2xl font-bold text-blue-600" id="stat-courses">--</div>
+                <div class="text-xs text-gray-500 mt-1">在学课程</div>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm text-center">
+                <div class="text-2xl font-bold text-green-600" id="stat-minutes">--</div>
+                <div class="text-xs text-gray-500 mt-1">总学习时长(分)</div>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm text-center">
+                <div class="text-2xl font-bold text-purple-600" id="stat-completed">--</div>
+                <div class="text-xs text-gray-500 mt-1">已完成音频</div>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm text-center">
+                <div class="text-2xl font-bold text-orange-600" id="stat-total">--</div>
+                <div class="text-xs text-gray-500 mt-1">课程总数</div>
+            </div>
+        </div>
+
+        <!-- 学习计划 -->
+        <div class="mb-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-3">🎯 学习计划</h2>
+            <div id="plans-list">
+                <div class="text-gray-400 text-center py-10 bg-white rounded-xl shadow-sm">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 今日任务 -->
+        <div id="today-tasks-section" class="mb-8 hidden">
+            <h2 class="text-lg font-bold text-gray-800 mb-3">📅 今日任务</h2>
+            <div id="today-tasks-list" class="space-y-2"></div>
+        </div>
+
+        <!-- 课程进度 -->
+        <div class="mb-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-3">📖 课程进度</h2>
+            <div id="course-progress-list" class="space-y-3">
+                <div class="text-gray-400 text-center py-10 bg-white rounded-xl shadow-sm">加载中...</div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!requireAuth()) return;
+            initAuth();
+            loadData();
+        });
+
+        async function loadData() {
+            try {
+                const [progressData, plansData] = await Promise.all([
+                    MyAPI.getProgress(),
+                    MyAPI.getPlans()
+                ]);
+                renderStats(progressData.summary);
+                renderCourseProgress(progressData.courses);
+                renderPlans(plansData.plans);
+                renderTodayTasks(plansData.plans);
+            } catch (err) {
+                console.error('加载数据失败:', err);
+                document.getElementById('course-progress-list').innerHTML =
+                    `<div class="text-red-500 text-center py-10 bg-white rounded-xl shadow-sm">加载失败: ${err.message}</div>`;
+                document.getElementById('plans-list').innerHTML =
+                    `<div class="text-red-500 text-center py-10 bg-white rounded-xl shadow-sm">加载失败: ${err.message}</div>`;
+            }
+        }
+
+        function renderStats(summary) {
+            document.getElementById('stat-courses').textContent = summary.studied_courses || 0;
+            document.getElementById('stat-minutes').textContent = summary.total_listened_minutes?.toFixed(1) || 0;
+            document.getElementById('stat-completed').textContent = summary.total_completed_audios || 0;
+            document.getElementById('stat-total').textContent = summary.total_courses || 0;
+        }
+
+        function renderCourseProgress(courses) {
+            const container = document.getElementById('course-progress-list');
+            const studied = courses.filter(c => c.listened_minutes > 0);
+            const notStarted = courses.filter(c => c.listened_minutes === 0);
+
+            if (courses.length === 0) {
+                container.innerHTML = '<div class="text-gray-400 text-center py-10 bg-white rounded-xl shadow-sm">暂无课程</div>';
+                return;
+            }
+
+            const renderCard = (course) => {
+                const progress = course.progress_percent || 0;
+                const lastStudy = course.last_study_at
+                    ? formatDate(course.last_study_at) + ' ' + new Date(course.last_study_at).toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'})
+                    : '尚未学习';
+                const coverUrl = course.cover_image
+                    ? (course.cover_image.startsWith('http') ? course.cover_image : `/uploads/covers/${course.cover_image.split('/').pop()}`)
+                    : 'https://placehold.co/120x90/e5e7eb/9ca3af?text=Course';
+
+                // 找到第一个有进度的音频，作为继续学习的入口
+                let continueAudioId = null;
+                for (const a of course.audio_progress) {
+                    if (!a.completed && a.current_time > 0) {
+                        continueAudioId = a.id;
+                        break;
+                    }
+                }
+                // 如果没有有进度的，取第一个未完成的
+                if (!continueAudioId) {
+                    for (const a of course.audio_progress) {
+                        if (!a.completed) {
+                            continueAudioId = a.id;
+                            break;
+                        }
+                    }
+                }
+                // 如果全部完成，取第一个
+                if (!continueAudioId && course.audio_progress.length > 0) {
+                    continueAudioId = course.audio_progress[0].id;
+                }
+
+                const playUrl = `/player.html?course=${course.course_id}${continueAudioId ? '&audio=' + continueAudioId : ''}`;
+
+                return `
+                    <div class="bg-white rounded-xl shadow-sm p-4 sm:p-5 hover:shadow-md transition">
+                        <div class="flex gap-4">
+                            <a href="${playUrl}" class="shrink-0">
+                                <img src="${coverUrl}" class="w-20 h-14 sm:w-28 sm:h-20 object-cover rounded-lg bg-gray-100"
+                                     onerror="this.src='https://placehold.co/120x90/e5e7eb/9ca3af?text=Course'" alt="">
+                            </a>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between mb-1">
+                                    <a href="${playUrl}" class="font-bold text-gray-900 truncate hover:text-blue-600 transition">${escapeHtml(course.course_title)}</a>
+                                    <span class="text-xs text-gray-400 shrink-0 ml-2">${lastStudy}</span>
+                                </div>
+                                <div class="flex items-center gap-1 sm:gap-2 mb-2 text-xs text-gray-500 whitespace-nowrap overflow-x-auto no-scrollbar">
+                                    <span class="shrink-0">${course.category}</span>
+                                    <span class="shrink-0">·</span>
+                                    <span class="shrink-0">${course.completed_audio_count}/${course.total_audio_count} 音频</span>
+                                    <span class="shrink-0">·</span>
+                                    <span class="shrink-0">${course.listened_minutes}/${course.total_minutes} 分钟</span>
+                                </div>
+                                <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full bg-blue-500 rounded-full transition-all" style="width: ${Math.min(progress, 100)}%"></div>
+                                </div>
+                                <div class="flex justify-between mt-1">
+                                    <span class="text-xs text-blue-600 font-medium">${progress}%</span>
+                                    <a href="${playUrl}" class="text-xs text-blue-600 hover:underline">${progress > 0 && progress < 100 ? '继续学习 →' : (progress >= 100 ? '已完成 ✓' : '开始学习 →')}</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            };
+
+            let html = '';
+            if (studied.length > 0) {
+                html += studied.map(renderCard).join('');
+            }
+            if (notStarted.length > 0) {
+                html += `<div class="mt-4 mb-2 text-sm text-gray-500 font-medium">未开始</div>`;
+                html += notStarted.map(renderCard).join('');
+            }
+            container.innerHTML = html;
+        }
+
+        function renderPlans(plans) {
+            const container = document.getElementById('plans-list');
+            if (!plans || plans.length === 0) {
+                container.innerHTML = `
+                    <div class="text-gray-400 text-center py-10 bg-white rounded-xl shadow-sm">
+                        <p>暂无学习计划</p>
+                        <a href="/settings.html" class="text-blue-600 text-sm hover:underline mt-2 inline-block">去个人设置生成计划 →</a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = plans.map(plan => {
+                const progress = plan.progress || {};
+                const statusColor = {
+                    'active': 'bg-green-100 text-green-700',
+                    'completed': 'bg-blue-100 text-blue-700',
+                    'skipped': 'bg-gray-100 text-gray-500',
+                    'replaced': 'bg-gray-100 text-gray-500'
+                }[plan.status] || 'bg-gray-100 text-gray-500';
+                const statusText = {
+                    'active': '进行中',
+                    'completed': '已完成',
+                    'skipped': '已跳过',
+                    'replaced': '已替换'
+                }[plan.status] || plan.status;
+                const typeText = {
+                    'daily': '日计划',
+                    'weekly': '周计划',
+                    'custom': '自定义'
+                }[plan.plan_type] || plan.plan_type;
+
+                const heatmapHtml = renderPlanHeatmap(plan.heatmap || []);
+
+                return `
+                    <div class="bg-white rounded-xl shadow-sm p-5 mb-3">
+                        <div class="flex items-start justify-between mb-2">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-sm font-bold text-gray-800">${escapeHtml(plan.learning_goal || '学习计划')}</span>
+                                    <span class="px-2 py-0.5 rounded text-xs ${statusColor}">${statusText}</span>
+                                    <span class="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">${typeText}</span>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    目标日期: ${plan.target_date || '--'} · 目标时长: ${plan.target_minutes || 0}分钟
+                                    ${plan.ai_generated ? '· <span class="text-purple-600">AI生成</span>' : ''}
+                                </div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <div class="text-lg font-bold text-blue-600">${progress.completion_rate || 0}%</div>
+                                <div class="text-xs text-gray-400">完成率</div>
+                            </div>
+                        </div>
+                        <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
+                            <div class="h-full bg-blue-500 rounded-full transition-all" style="width: ${Math.min(progress.completion_rate || 0, 100)}%"></div>
+                        </div>
+                        ${heatmapHtml}
+                        <div class="flex justify-between text-xs text-gray-500 mt-2">
+                            <span>${progress.completed_slots || 0}/${progress.total_slots || 0} 时段</span>
+                            <span>${progress.total_actual_minutes || 0}/${plan.total_expected_minutes || 0} 分钟</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderPlanHeatmap(heatmap) {
+            if (!heatmap || heatmap.length === 0) return '';
+
+            const dateMap = {};
+            heatmap.forEach(item => { dateMap[item.date] = item.status; });
+
+            const dates = Object.keys(dateMap).sort();
+            const start = new Date(dates[0] + 'T00:00:00');
+            const end = new Date(dates[dates.length - 1] + 'T00:00:00');
+
+            // 调整到该周的周日开始
+            const weekStart = new Date(start);
+            weekStart.setDate(weekStart.getDate() - start.getDay());
+
+            // 生成按周分组的日期
+            const weeks = [];
+            let current = new Date(weekStart);
+            while (current <= end) {
+                const week = [];
+                for (let i = 0; i < 7; i++) {
+                    const dateStr = current.toISOString().slice(0, 10);
+                    week.push({
+                        date: dateStr,
+                        status: dateMap[dateStr] || null,
+                        month: current.getMonth() + 1,
+                        day: current.getDate()
+                    });
+                    current.setDate(current.getDate() + 1);
+                }
+                weeks.push(week);
+            }
+
+            const colorClass = {
+                'planned': 'bg-green-500',
+                'completed': 'bg-red-500',
+                'skipped': 'bg-gray-300'
+            };
+            const statusLabelMap = {
+                'planned': '计划',
+                'completed': '完成',
+                'skipped': '跳过'
+            };
+
+            // 判断每列是否需要显示月份标签（该列第一天是1号，或是整个范围的第一天）
+            let lastMonthLabel = 0;
+            const weekCols = weeks.map(week => {
+                const firstDay = week[0];
+                let monthLabel = '';
+                if (firstDay.day === 1 || firstDay.date === dates[0]) {
+                    if (firstDay.month !== lastMonthLabel) {
+                        lastMonthLabel = firstDay.month;
+                        monthLabel = `<div class="text-[10px] text-gray-400 h-3 flex items-center justify-center">${firstDay.month}月</div>`;
+                    }
+                }
+                if (!monthLabel) monthLabel = '<div class="h-3"></div>';
+
+                const cells = week.map(d => {
+                    const cls = d.status ? (colorClass[d.status] || 'bg-gray-100') : 'bg-gray-100';
+                    const label = d.status ? statusLabelMap[d.status] : '';
+                    return `<div class="w-3 h-3 rounded-sm ${cls}" title="${d.date}${label ? '：' + label : ''}"></div>`;
+                }).join('');
+                return `<div class="flex flex-col gap-1">${monthLabel}${cells}</div>`;
+            }).join('');
+
+            // 星期标签列（7行对应日~六）
+            const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+            const labelCol = dayNames.map((l, i) =>
+                `<div class="text-[10px] text-gray-400 h-3 flex items-center justify-end pr-1">${l}</div>`
+            ).join('');
+
+            return `
+                <div class="bg-gray-50 rounded-lg p-3 mt-1">
+                    <div class="flex items-center gap-3 mb-2 text-xs text-gray-500">
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-green-500"></span> 计划</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-red-500"></span> 完成</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-sm bg-gray-300"></span> 跳过</span>
+                    </div>
+                    <div class="flex gap-1">
+                        <div class="flex flex-col gap-1 shrink-0">${labelCol}</div>
+                        <div class="flex gap-1 overflow-x-auto no-scrollbar">${weekCols}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTodayTasks(plans) {
+            const section = document.getElementById('today-tasks-section');
+            const container = document.getElementById('today-tasks-list');
+            const allTasks = [];
+
+            plans.forEach(plan => {
+                if (plan.status !== 'active') return;
+                (plan.today_tasks || []).forEach(task => {
+                    allTasks.push({ ...task, plan_goal: plan.learning_goal });
+                });
+            });
+
+            if (allTasks.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+
+            section.classList.remove('hidden');
+            container.innerHTML = allTasks.map(task => {
+                const statusColor = {
+                    'pending': 'bg-gray-100 text-gray-600',
+                    'in_progress': 'bg-yellow-100 text-yellow-700',
+                    'completed': 'bg-green-100 text-green-700',
+                    'skipped': 'bg-gray-200 text-gray-500'
+                }[task.status] || 'bg-gray-100 text-gray-600';
+                const statusText = {
+                    'pending': '待开始',
+                    'in_progress': '进行中',
+                    'completed': '已完成',
+                    'skipped': '已跳过'
+                }[task.status] || task.status;
+
+                return `
+                    <div class="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
+                        <div class="w-12 text-center shrink-0">
+                            <div class="text-sm font-bold text-gray-800">${task.scheduled_time || '--:--'}</div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium text-gray-900 truncate">${escapeHtml(task.course_title)}</div>
+                            <div class="text-xs text-gray-500 truncate">${escapeHtml(task.audio_title)} · ${task.expected_minutes}分钟</div>
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs ${statusColor} shrink-0">${statusText}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

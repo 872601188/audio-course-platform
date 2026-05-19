@@ -80,6 +80,7 @@ def create_app():
         from backend.routes.player import player_bp
         from backend.routes.analyze import analyze_bp
         from backend.routes.openclaw import openclaw_bp
+        from backend.routes.my import my_bp
     except ImportError:
         from routes.auth import auth_bp
         from routes.courses import courses_bp
@@ -87,6 +88,7 @@ def create_app():
         from routes.player import player_bp
         from routes.analyze import analyze_bp
         from routes.openclaw import openclaw_bp
+        from routes.my import my_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(courses_bp, url_prefix='/api')
@@ -94,6 +96,7 @@ def create_app():
     app.register_blueprint(player_bp, url_prefix='/api')
     app.register_blueprint(analyze_bp, url_prefix='/api')
     app.register_blueprint(openclaw_bp, url_prefix='/api')
+    app.register_blueprint(my_bp, url_prefix='/api')
 
     # 创建数据库表
     with app.app_context():

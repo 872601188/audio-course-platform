@@ -31,17 +31,31 @@ async function loadCourseAndSetupPlayer() {
         renderPlaylist(currentCourse.audio_files);
         setupAudioPlayer();
 
-        // 自动播放第一首，或继续上次的音频
+        // 解析 URL 参数：audio 指定音频索引，t 指定播放时间
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetAudioId = parseInt(urlParams.get('audio'), 10);
+        const targetTime = parseFloat(urlParams.get('t'));
+
         if (currentCourse.audio_files && currentCourse.audio_files.length > 0) {
-            // 查找上次播放的音频（有进度的）
             let startIndex = 0;
-            for (let i = 0; i < currentCourse.audio_files.length; i++) {
-                if (currentCourse.audio_files[i].current_time > 0 && !currentCourse.audio_files[i].completed) {
-                    startIndex = i;
-                    break;
+
+            // 如果 URL 指定了 audio_id，找到对应索引
+            if (!isNaN(targetAudioId)) {
+                const foundIndex = currentCourse.audio_files.findIndex(a => a.id === targetAudioId);
+                if (foundIndex >= 0) {
+                    startIndex = foundIndex;
+                }
+            } else {
+                // 查找上次播放的音频（有进度的）
+                for (let i = 0; i < currentCourse.audio_files.length; i++) {
+                    if (currentCourse.audio_files[i].current_time > 0 && !currentCourse.audio_files[i].completed) {
+                        startIndex = i;
+                        break;
+                    }
                 }
             }
-            loadAudio(startIndex);
+
+            loadAudio(startIndex, !isNaN(targetTime) ? targetTime : null);
         }
     } catch (err) {
         document.getElementById('course-title').textContent = '加载失败';
@@ -84,6 +98,11 @@ function setupAudioPlayer() {
     audio = document.getElementById('main-audio');
     if (!audio) return;
 
+    // 应用全局保存的倍速
+    const savedSpeed = getSavedSpeed();
+    audio.playbackRate = savedSpeed;
+    updateSpeedButtonStyles(savedSpeed);
+
     // 监听播放进度
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('play', onPlay);
@@ -104,11 +123,15 @@ function setupAudioPlayer() {
     }
 }
 
-// 倍速切换
+// 倍速切换（全局设置，保存到 localStorage）
 function setSpeed(speed) {
     if (!audio) return;
     audio.playbackRate = speed;
-    // 更新按钮样式
+    localStorage.setItem('playback_speed', speed);
+    updateSpeedButtonStyles(speed);
+}
+
+function updateSpeedButtonStyles(speed) {
     document.querySelectorAll('.speed-btn').forEach(btn => {
         const btnSpeed = parseFloat(btn.dataset.speed);
         if (btnSpeed === speed) {
@@ -119,7 +142,20 @@ function setSpeed(speed) {
     });
 }
 
-async function loadAudio(index) {
+function getSavedSpeed() {
+    const saved = localStorage.getItem('playback_speed');
+    if (saved) {
+        const speed = parseFloat(saved);
+        if (!isNaN(speed) && speed > 0) {
+            return speed;
+        }
+    }
+    return 1.0;
+}
+
+let preloadAudio = null;  // 预加载音频元素
+
+async function loadAudio(index, forceTime = null) {
     if (!currentCourse || !currentCourse.audio_files || index < 0 || index >= currentCourse.audio_files.length) return;
 
     currentAudioIndex = index;
@@ -148,7 +184,9 @@ async function loadAudio(index) {
     checkFavoriteStatus(audioFile.id);
 
     // 恢复上次播放位置（断点续播）
-    if (audioFile.current_time > 0 && !audioFile.completed) {
+    if (forceTime !== null && forceTime >= 0) {
+        audio.currentTime = forceTime;
+    } else if (audioFile.current_time > 0 && !audioFile.completed) {
         audio.currentTime = audioFile.current_time;
     } else {
         audio.currentTime = 0;
@@ -157,8 +195,49 @@ async function loadAudio(index) {
     lastPosition = audio.currentTime;
     sessionStartTime = Date.now();
 
+    // 应用全局倍速
+    const savedSpeed = getSavedSpeed();
+    audio.playbackRate = savedSpeed;
+
     // 自动播放
     audio.play().catch(e => console.log('自动播放被阻止:', e));
+
+    // 预加载下一首音频
+    preloadNextAudio();
+
+    // 更新浏览器地址栏，确保分享时 URL 包含当前音频
+    updateBrowserUrl(audioFile.id);
+}
+
+function updateBrowserUrl(audioId) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('audio', audioId);
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    history.replaceState({ audioId }, '', newUrl);
+}
+
+function preloadNextAudio() {
+    if (!currentCourse || !currentCourse.audio_files) return;
+    const nextIndex = currentAudioIndex + 1;
+    if (nextIndex >= currentCourse.audio_files.length) return;
+
+    const nextAudioFile = currentCourse.audio_files[nextIndex];
+    const src = `/api/audio/${nextAudioFile.id}/stream`;
+
+    // 复用或创建预加载音频元素
+    if (!preloadAudio) {
+        preloadAudio = document.createElement('audio');
+        preloadAudio.preload = 'auto';
+        preloadAudio.volume = 0;
+        preloadAudio.style.display = 'none';
+        document.body.appendChild(preloadAudio);
+    }
+
+    // 如果已经在预加载同一首，不做重复操作
+    if (preloadAudio.src !== window.location.origin + src) {
+        preloadAudio.src = src;
+        preloadAudio.load();
+    }
 }
 
 // 收藏功能
@@ -178,18 +257,21 @@ function updateFavoriteButton(favorited) {
     const emptyIcon = document.getElementById('fav-icon-empty');
     const filledIcon = document.getElementById('fav-icon-filled');
     const btn = document.getElementById('fav-btn');
+    const text = document.getElementById('fav-text');
     if (!emptyIcon || !filledIcon) return;
 
     if (favorited) {
         emptyIcon.classList.add('hidden');
         filledIcon.classList.remove('hidden');
-        btn.classList.add('text-red-500');
-        btn.classList.remove('text-gray-400');
+        btn.classList.add('text-red-500', 'border-red-300', 'bg-red-50');
+        btn.classList.remove('text-gray-500', 'border-gray-200');
+        if (text) text.textContent = '已收藏';
     } else {
         emptyIcon.classList.remove('hidden');
         filledIcon.classList.add('hidden');
-        btn.classList.remove('text-red-500');
-        btn.classList.add('text-gray-400');
+        btn.classList.remove('text-red-500', 'border-red-300', 'bg-red-50');
+        btn.classList.add('text-gray-500', 'border-gray-200');
+        if (text) text.textContent = '收藏';
     }
 }
 
@@ -339,6 +421,56 @@ function playPrev() {
     if (currentAudioIndex > 0) {
         loadAudio(currentAudioIndex - 1);
     }
+}
+
+// 分享弹窗
+let shareQrCode = null;
+
+function openShareModal() {
+    const modal = document.getElementById('share-modal');
+    if (!modal) return;
+
+    const shareUrl = window.location.href;
+    document.getElementById('share-link').value = shareUrl;
+
+    // 生成二维码
+    const qrContainer = document.getElementById('share-qrcode');
+    qrContainer.innerHTML = '';
+    shareQrCode = new QRCode(qrContainer, {
+        text: shareUrl,
+        width: 180,
+        height: 180,
+        colorDark: '#1f2937',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+    });
+
+    document.getElementById('copy-tip').textContent = '';
+    modal.classList.remove('hidden');
+}
+
+function closeShareModal() {
+    const modal = document.getElementById('share-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function copyShareLink() {
+    const input = document.getElementById('share-link');
+    const tip = document.getElementById('copy-tip');
+    if (!input) return;
+
+    try {
+        await navigator.clipboard.writeText(input.value);
+        tip.textContent = '链接已复制，去微信粘贴给好友吧！';
+    } catch (e) {
+        // 降级方案
+        input.select();
+        input.setSelectionRange(0, 99999);
+        const ok = document.execCommand('copy');
+        tip.textContent = ok ? '链接已复制，去微信粘贴给好友吧！' : '复制失败，请手动复制链接';
+    }
+
+    setTimeout(() => { tip.textContent = ''; }, 3000);
 }
 
 // 页面卸载时保存进度

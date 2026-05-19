@@ -1,4 +1,4 @@
-# 🎧 音频学习平台 (Audio Course Platform)
+# 🎧 习听云FM (Audio Course Platform)
 
 基于 Flask + SQLite + TailwindCSS 的音频课程学习平台，支持批量上传、断点续播、学习分析等功能。
 
